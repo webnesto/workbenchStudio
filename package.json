@@ -1,7 +1,7 @@
 {
-  "name": "background",
-  "displayName": "background",
-  "description": "Bring background images to your vscode",
+  "name": "background-eno-fork",
+  "displayName": "background (Eno fork)",
+  "description": "Bring background images to your vscode — Eno's fork with fullscreen `style` passthrough",
   "version": "2.0.10",
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -12,8 +12,8 @@
     "package": "vsce package",
     "prepare": "husky"
   },
-  "publisher": "shalldie",
-  "author": "shalldie",
+  "publisher": "eno",
+  "author": "eno (forked from shalldie)",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -179,7 +179,8 @@
             "size": "cover",
             "position": "center",
             "interval": 0,
-            "random": false
+            "random": false,
+            "style": {}
           },
           "properties": {
             "images": {
@@ -194,8 +195,12 @@
               "type": "number",
               "default": 0.1,
               "minimum": 0,
-              "maximum": 0.6,
+              "maximum": 1,
               "markdownDescription": "%extension.background.fullscreen.opacity%"
+            },
+            "style": {
+              "type": "object",
+              "default": {}
             },
             "size": {
               "type": "string",

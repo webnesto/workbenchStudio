@@ -46,7 +46,7 @@ export function css(template: TemplateStringsArray, ...args: any[]) {
 }
 
 export class AbsPatchGenerator<T extends { images: string[] }> {
-    protected config: T;
+    public config: T;
 
     /** 必须有图片 */
     protected imageRequired = true;

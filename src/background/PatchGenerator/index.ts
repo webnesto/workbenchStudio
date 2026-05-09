@@ -1,16 +1,20 @@
 import uglifyjs from 'uglify-js';
 
 import { _ } from '../../utils';
-import { AuxiliarybarPatchGenerator, AuxiliarybarPatchGeneratorConfig } from './PatchGenerator.auxiliarybar';
+import {
+    AuxiliarybarPatchGeneratorConfig,
+    WorkspaceAwareAuxiliarybarPatchGenerator
+} from './PatchGenerator.auxiliarybar';
 import { ChecksumsPatchGenerator } from './PatchGenerator.checksums';
 import {
     EditorPatchGenerator,
     EditorPatchGeneratorConfig,
-    LegacyEditorPatchGeneratorConfig
+    LegacyEditorPatchGeneratorConfig,
+    WorkspaceAwareEditorPatchGenerator
 } from './PatchGenerator.editor';
-import { FullscreenPatchGenerator, FullscreenPatchGeneratorConfig } from './PatchGenerator.fullscreen';
-import { PanelPatchGenerator, PanelPatchGeneratorConfig } from './PatchGenerator.panel';
-import { SidebarPatchGenerator, SidebarPatchGeneratorConfig } from './PatchGenerator.sidebar';
+import { FullscreenPatchGeneratorConfig, WorkspaceAwareFullscreenPatchGenerator } from './PatchGenerator.fullscreen';
+import { PanelPatchGeneratorConfig, WorkspaceAwarePanelPatchGenerator } from './PatchGenerator.panel';
+import { SidebarPatchGeneratorConfig, WorkspaceAwareSidebarPatchGenerator } from './PatchGenerator.sidebar';
 import { ThemePatchGenerator } from './PatchGenerator.theme';
 
 export type TPatchGeneratorConfig = {
@@ -29,11 +33,13 @@ export class PatchGenerator {
             new ChecksumsPatchGenerator().create(), // fix checksums
             new ThemePatchGenerator().create(), // hack theme
             // sections
-            new EditorPatchGenerator(EditorPatchGenerator.mergeLegacyConfig(options, options.editor)).create(), // editor,
-            new SidebarPatchGenerator(options.sidebar).create(), // sidebar
-            new AuxiliarybarPatchGenerator(options.auxiliarybar).create(), // auxiliarybar
-            new PanelPatchGenerator(options.panel).create(), // panel
-            new FullscreenPatchGenerator(options.fullscreen).create() // fullscreen
+            new WorkspaceAwareEditorPatchGenerator(
+                EditorPatchGenerator.mergeLegacyConfig(options, options.editor)
+            ).create(), // editor (workspace-aware)
+            new WorkspaceAwareSidebarPatchGenerator(options.sidebar).create(), // sidebar (workspace-aware)
+            new WorkspaceAwareAuxiliarybarPatchGenerator(options.auxiliarybar).create(), // auxiliarybar (workspace-aware)
+            new WorkspaceAwarePanelPatchGenerator(options.panel).create(), // panel (workspace-aware)
+            new WorkspaceAwareFullscreenPatchGenerator(options.fullscreen).create() // fullscreen (workspace-aware)
         ]
             .filter(n => !!n.length)
             .map(n => _.withIIFE(n))

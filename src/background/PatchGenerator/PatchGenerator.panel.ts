@@ -1,11 +1,12 @@
 import { css } from './PatchGenerator.base';
 import { FullscreenPatchGenerator, FullscreenPatchGeneratorConfig } from './PatchGenerator.fullscreen';
+import { buildSectionLoaderScript } from './PatchGenerator.section-loader';
 import { ThemePatchGenerator } from './PatchGenerator.theme';
 
 export class PanelPatchGeneratorConfig extends FullscreenPatchGeneratorConfig {}
 
 export class PanelPatchGenerator extends FullscreenPatchGenerator<PanelPatchGeneratorConfig> {
-    protected readonly cssvariable = '--background-panel-img';
+    protected cssvariable = '--background-panel-img';
 
     protected getStyle(): string {
         const { size, position, opacity } = this.curConfig;
@@ -28,5 +29,41 @@ export class PanelPatchGenerator extends FullscreenPatchGenerator<PanelPatchGene
                 background-image: var(${this.cssvariable});
             }
         `;
+    }
+}
+
+/**
+ * Workspace-aware panel generator (Phase 2B).
+ */
+export class WorkspaceAwarePanelPatchGenerator extends PanelPatchGenerator {
+    protected imageRequired = false;
+
+    protected getStyle(): string {
+        return css`
+            .split-view-view > .part.panel::after {
+                content: '';
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                top: 0;
+                left: 0;
+                background-position: var(--bg-pn-position, center);
+                background-repeat: no-repeat;
+                background-size: var(--bg-pn-size, cover);
+                pointer-events: none;
+                opacity: var(--bg-pn-opacity, 0.1);
+                transition: 1s;
+                mix-blend-mode: var(${ThemePatchGenerator.cssMixBlendMode});
+                background-image: var(${this.cssvariable});
+            }
+        `;
+    }
+
+    protected getScript(): string {
+        return buildSectionLoaderScript({
+            sectionName: 'panel',
+            cssVarImg: this.cssvariable,
+            cssVarPrefix: 'bg-pn'
+        });
     }
 }

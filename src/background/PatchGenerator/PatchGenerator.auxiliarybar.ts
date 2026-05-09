@@ -1,5 +1,6 @@
 import { css } from './PatchGenerator.base';
 import { FullscreenPatchGenerator, FullscreenPatchGeneratorConfig } from './PatchGenerator.fullscreen';
+import { buildSectionLoaderScript } from './PatchGenerator.section-loader';
 import { ThemePatchGenerator } from './PatchGenerator.theme';
 
 export class AuxiliarybarPatchGeneratorConfig extends FullscreenPatchGeneratorConfig {}
@@ -28,5 +29,41 @@ export class AuxiliarybarPatchGenerator extends FullscreenPatchGenerator<Auxilia
                 background-image: var(${this.cssvariable});
             }
         `;
+    }
+}
+
+/**
+ * Workspace-aware auxiliarybar generator (Phase 2B).
+ */
+export class WorkspaceAwareAuxiliarybarPatchGenerator extends AuxiliarybarPatchGenerator {
+    protected imageRequired = false;
+
+    protected getStyle(): string {
+        return css`
+            .split-view-view > .part.auxiliarybar::after {
+                content: '';
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                top: 0;
+                left: 0;
+                background-position: var(--bg-ax-position, center);
+                background-repeat: no-repeat;
+                background-size: var(--bg-ax-size, cover);
+                pointer-events: none;
+                opacity: var(--bg-ax-opacity, 0.1);
+                transition: 1s;
+                mix-blend-mode: var(${ThemePatchGenerator.cssMixBlendMode});
+                background-image: var(${this.cssvariable});
+            }
+        `;
+    }
+
+    protected getScript(): string {
+        return buildSectionLoaderScript({
+            sectionName: 'auxiliarybar',
+            cssVarImg: this.cssvariable,
+            cssVarPrefix: 'bg-ax'
+        });
     }
 }

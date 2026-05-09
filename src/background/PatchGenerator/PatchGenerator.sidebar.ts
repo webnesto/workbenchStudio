@@ -1,5 +1,6 @@
 import { css } from './PatchGenerator.base';
 import { FullscreenPatchGenerator, FullscreenPatchGeneratorConfig } from './PatchGenerator.fullscreen';
+import { buildSectionLoaderScript } from './PatchGenerator.section-loader';
 import { ThemePatchGenerator } from './PatchGenerator.theme';
 
 export class SidebarPatchGeneratorConfig extends FullscreenPatchGeneratorConfig {}
@@ -29,5 +30,46 @@ export class SidebarPatchGenerator extends FullscreenPatchGenerator<SidebarPatch
                 background-image: var(${this.cssvariable});
             }
         `;
+    }
+}
+
+/**
+ * Workspace-aware sidebar generator (Phase 2B).
+ *
+ * Uses CSS-variable-driven scaffold + runtime loader (via the shared
+ * buildSectionLoaderScript helper). Reads workspaces[key].sidebar from the
+ * extension's runtime-state.css file. Per-window per-workspace correct.
+ */
+export class WorkspaceAwareSidebarPatchGenerator extends SidebarPatchGenerator {
+    protected imageRequired = false;
+
+    protected getStyle(): string {
+        return css`
+            .split-view-view > .part.sidebar::after {
+                content: '';
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                top: 0;
+                left: 0;
+                z-index: 99;
+                background-position: var(--bg-sb-position, center);
+                background-repeat: no-repeat;
+                background-size: var(--bg-sb-size, cover);
+                pointer-events: none;
+                opacity: var(--bg-sb-opacity, 0.1);
+                transition: 1s;
+                mix-blend-mode: var(${ThemePatchGenerator.cssMixBlendMode});
+                background-image: var(${this.cssvariable});
+            }
+        `;
+    }
+
+    protected getScript(): string {
+        return buildSectionLoaderScript({
+            sectionName: 'sidebar',
+            cssVarImg: this.cssvariable,
+            cssVarPrefix: 'bg-sb'
+        });
     }
 }
