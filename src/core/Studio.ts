@@ -4,12 +4,19 @@ import path from 'path';
 
 import vscode, { Disposable, l10n, Uri } from 'vscode';
 
+import { AuxiliarybarPatchGenerator } from '../features/backgrounds/auxiliarybar';
+import { EditorPatchGenerator } from '../features/backgrounds/editor';
+import { FullscreenPatchGenerator } from '../features/backgrounds/fullscreen';
+import { PanelPatchGenerator } from '../features/backgrounds/panel';
+import { SidebarPatchGenerator } from '../features/backgrounds/sidebar';
 import {
+    BACKGROUNDS_KEY,
+    CONFIG_NAMESPACE,
     ENCODING,
-    EXTENSION_NAME,
     STATE_CSS_PATH,
     STATE_JSON_PATH,
     TOUCH_JSFILE_PATH,
+    TYPOGRAPHY_KEY,
     VERSION
 } from '../utils/constants';
 import { vscodePath } from '../utils/vscodePath';
@@ -17,46 +24,42 @@ import { vsHelp } from '../utils/vsHelp';
 import { CssFile } from './CssFile';
 import { EFilePatchType, JsPatchFile } from './PatchFile';
 import { PatchGenerator, TPatchGeneratorConfig } from './PatchGenerator';
-import { AuxiliarybarPatchGenerator } from './PatchGenerator/PatchGenerator.auxiliarybar';
-import { EditorPatchGenerator } from './PatchGenerator/PatchGenerator.editor';
-import { FullscreenPatchGenerator } from './PatchGenerator/PatchGenerator.fullscreen';
-import { PanelPatchGenerator } from './PatchGenerator/PatchGenerator.panel';
-import { SidebarPatchGenerator } from './PatchGenerator/PatchGenerator.sidebar';
 
-/**
- * 配置类型
- */
-type TConfigType = vscode.WorkspaceConfiguration & TPatchGeneratorConfig;
-
-/**
- * 插件逻辑类
- * Extension logic
- *
- * @export
- * @class Background
- */
-export class Background implements Disposable {
+export class Studio implements Disposable {
     // #region fields 字段
 
-    /**
-     * 老版本css文件操作对象
-     *
-     * @memberof Background
-     */
-    public cssFile = new CssFile(vscodePath.cssPath); // 没必要继承，组合就行
+    public cssFile = new CssFile(vscodePath.cssPath);
 
     public jsFile = new JsPatchFile(vscodePath.jsPath);
 
     /**
-     * Current config
-     * 当前用户配置
-     *
-     * @private
-     * @type {TConfigType}
-     * @memberof Background
+     * Raw VSCode workspace configuration for the workbenchStudio namespace.
+     * Use this for `.update()` calls and direct key access (e.g. `enabled`).
+     * For the patch-generator's nested shape, use `getPatchConfig()`.
      */
-    public get config() {
-        return vscode.workspace.getConfiguration('background') as TConfigType;
+    public get config(): vscode.WorkspaceConfiguration {
+        return vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
+    }
+
+    /**
+     * Build the nested config the PatchGenerator expects from the flat
+     * settings layout (`workbenchStudio.enabled`, `workbenchStudio.backgrounds.*`).
+     */
+    private getPatchConfig(folderUri?: vscode.Uri): TPatchGeneratorConfig {
+        const cfg = vscode.workspace.getConfiguration(CONFIG_NAMESPACE, folderUri);
+        const bg = cfg.get<any>(BACKGROUNDS_KEY) || {};
+        const tg = cfg.get<any>(TYPOGRAPHY_KEY) || {};
+        return {
+            enabled: cfg.get<boolean>('enabled', true),
+            editor: bg.editor || {},
+            fullscreen: bg.fullscreen || {},
+            sidebar: bg.sidebar || {},
+            panel: bg.panel || {},
+            auxiliarybar: bg.auxiliarybar || {},
+            typography: {
+                explorer: tg.explorer || {}
+            }
+        };
     }
 
     /**
@@ -64,7 +67,7 @@ export class Background implements Disposable {
      *
      * @private
      * @type {Disposable[]}
-     * @memberof Background
+     * @memberof Studio
      */
     private disposables: Disposable[] = [];
 
@@ -77,7 +80,7 @@ export class Background implements Disposable {
      *
      * @private
      * @returns {boolean} 是否初次加载
-     * @memberof Background
+     * @memberof Studio
      */
     private async checkFirstload(): Promise<boolean> {
         const firstLoad = !fs.existsSync(TOUCH_JSFILE_PATH);
@@ -92,12 +95,8 @@ export class Background implements Disposable {
     }
 
     public async showWelcome() {
-        // 欢迎页
         const docDir = path.join(__dirname, '../../docs');
-        const docName = /^zh/.test(vscode.env.language) ? 'welcome.zh-CN.md' : 'welcome.md';
-
-        // welcome 内容
-        let content = await fs.promises.readFile(path.join(docDir, docName), ENCODING);
+        let content = await fs.promises.readFile(path.join(docDir, 'welcome.md'), ENCODING);
         // 替换图片内联为base64
         content = content.replace(/\.\.\/images[^\")]+/g, (relativePath: string) => {
             const imgPath = path.join(vscodePath.extRoot, 'images', relativePath);
@@ -122,7 +121,7 @@ export class Background implements Disposable {
      *
      * @private
      * @return {*}
-     * @memberof Background
+     * @memberof Studio
      */
     private async removeLegacyCssPatch() {
         try {
@@ -139,19 +138,16 @@ export class Background implements Disposable {
      *
      * @private
      * @return {*}
-     * @memberof Background
+     * @memberof Studio
      */
     private async onConfigChange() {
         const hasInstalled = await this.hasInstalled();
-        const enabled = this.config.enabled;
+        const enabled = this.config.get<boolean>('enabled', true);
 
-        // 禁用
         if (!enabled) {
             if (hasInstalled) {
-                // await this.uninstall();
-
                 vsHelp.reload({
-                    message: l10n.t('Background will be disabled.'),
+                    message: l10n.t('Workbench Studio will be disabled.'),
                     btnReload: l10n.t('Disable and Reload'),
                     beforeReload: () => this.uninstall()
                 });
@@ -159,7 +155,6 @@ export class Background implements Disposable {
             return;
         }
 
-        // 更新，需要二次确认
         vsHelp.reload({
             message: l10n.t('Configuration has been changed, click to apply.'),
             btnReload: l10n.t('Apply and Reload'),
@@ -168,12 +163,11 @@ export class Background implements Disposable {
     }
 
     public async applyPatch() {
-        // 禁用时候，不处理
-        if (!this.config.enabled) {
+        if (!this.config.get<boolean>('enabled', true)) {
             return;
         }
 
-        const scriptContent = PatchGenerator.create(this.config);
+        const scriptContent = PatchGenerator.create(this.getPatchConfig());
         return this.jsFile.applyPatches(scriptContent);
     }
 
@@ -262,7 +256,7 @@ export class Background implements Disposable {
                 await new Promise(r => setTimeout(r, delayMs));
             }
         }
-        throw new Error('background: failed to acquire state-file lock after retries');
+        throw new Error('workbench-studio: failed to acquire state-file lock after retries');
     }
 
     private async doWriteWorkspaceState(): Promise<void> {
@@ -276,20 +270,19 @@ export class Background implements Disposable {
             } catch {}
 
             // Pass the workspace folder URI as the scope so getConfiguration honors
-            // folder-level `.vscode/settings.json` overrides — without a scope it
-            // resolves to user + workspace settings only, missing folder-scoped values.
+            // folder-level `.vscode/settings.json` overrides.
             const folderUri = vscode.workspace.workspaceFolders?.[0]?.uri;
-            const cfg = vscode.workspace.getConfiguration('background', folderUri);
-            const fullscreenRaw = cfg.get<any>('fullscreen') || {};
-            const editorRaw = cfg.get<any>('editor') || {};
-            const sidebarRaw = cfg.get<any>('sidebar') || {};
-            const panelRaw = cfg.get<any>('panel') || {};
-            const auxiliarybarRaw = cfg.get<any>('auxiliarybar') || {};
+            const cfg = vscode.workspace.getConfiguration(CONFIG_NAMESPACE, folderUri);
+            const bg = cfg.get<any>(BACKGROUNDS_KEY) || {};
+            const fullscreenRaw = bg.fullscreen || {};
+            const editorRaw = bg.editor || {};
+            const sidebarRaw = bg.sidebar || {};
+            const panelRaw = bg.panel || {};
+            const auxiliarybarRaw = bg.auxiliarybar || {};
 
             // Normalize image paths via each section's patch generator constructor.
             const fullscreenGen = new FullscreenPatchGenerator(fullscreenRaw);
-            const editorMerged = EditorPatchGenerator.mergeLegacyConfig(this.config, editorRaw);
-            const editorGen = new EditorPatchGenerator(editorMerged);
+            const editorGen = new EditorPatchGenerator(editorRaw);
             const sidebarGen = new SidebarPatchGenerator(sidebarRaw);
             const panelGen = new PanelPatchGenerator(panelRaw);
             const auxiliarybarGen = new AuxiliarybarPatchGenerator(auxiliarybarRaw);
@@ -334,7 +327,7 @@ export class Background implements Disposable {
             await fs.promises.writeFile(jsonTmp, stateJson, ENCODING);
             await fs.promises.rename(jsonTmp, STATE_JSON_PATH);
         } catch (ex) {
-            console.error('background: failed to write workspace state', ex);
+            console.error('workbench-studio: failed to write workspace state', ex);
         }
     }
 
@@ -366,7 +359,7 @@ export class Background implements Disposable {
     }
 
     public previewPatch() {
-        const scriptContent = PatchGenerator.create(this.config);
+        const scriptContent = PatchGenerator.create(this.getPatchConfig());
         vsHelp.showMarkdown('```ts\n' + scriptContent + '\n```', 'preview-patch');
     }
 
@@ -378,7 +371,7 @@ export class Background implements Disposable {
      * 初始化
      *
      * @return {*}  {Promise<any>}
-     * @memberof Background
+     * @memberof Studio
      */
     public async setup(): Promise<any> {
         await this.removeLegacyCssPatch(); // 移除「v1旧版本」patch
@@ -393,11 +386,10 @@ export class Background implements Disposable {
         // 如果「开启」状态，文件不是「latest」，则进行「提示更新」
         // 此时一般为 「background更新」、「vscode更新」
         const needApply = [EFilePatchType.Legacy, EFilePatchType.None].includes(patchType);
-        if (this.config.enabled && needApply) {
-            // 提示
+        if (this.config.get<boolean>('enabled', true) && needApply) {
             vscode.window
                 .showInformationMessage(
-                    l10n.t('Background@{version} is ready! Apply to take effect.', { version: VERSION }),
+                    l10n.t('Workbench Studio@{version} is ready! Apply to take effect.', { version: VERSION }),
                     {
                         title: l10n.t('Apply and Reload'),
                         action: async () => {
@@ -418,28 +410,26 @@ export class Background implements Disposable {
         //     // 提示： 欢迎使用 background@version! 「应用并重载」、「更多」
         //     if (await this.applyPatch()) {
         //         vsHelp.reload({
-        //             message: l10n.t('Background has been changed! Please reload.')
+        //             message: l10n.t('Workbench Studio has been changed! Please reload.')
         //         });
         //     }
         // }
 
-        // 监听文件改变
         this.disposables.push(
             vscode.workspace.onDidChangeConfiguration(async ex => {
-                const hasChanged = ex.affectsConfiguration('background');
+                const hasChanged = ex.affectsConfiguration(CONFIG_NAMESPACE);
                 if (!hasChanged) {
                     return;
                 }
 
-                // Always update the state file so all workspace-aware sections refresh
-                // live without an Apply-and-Reload cycle.
                 await this.writeWorkspaceState();
 
-                // All section settings (fullscreen/editor/sidebar/panel/auxiliarybar)
-                // are now workspace-aware and reload-free. Only `background.enabled`
-                // requires re-patching workbench.js, so prompt only for that.
-                const enabledChanged = ex.affectsConfiguration('background.enabled');
-                if (!enabledChanged) {
+                // Backgrounds are workspace-aware and reload-free.
+                // `enabled` and typography settings re-patch workbench.js,
+                // so prompt for those.
+                const enabledChanged = ex.affectsConfiguration(`${CONFIG_NAMESPACE}.enabled`);
+                const typographyChanged = ex.affectsConfiguration(`${CONFIG_NAMESPACE}.${TYPOGRAPHY_KEY}`);
+                if (!enabledChanged && !typographyChanged) {
                     return;
                 }
 
@@ -455,7 +445,7 @@ export class Background implements Disposable {
      * 是否已安装
      *
      * @return {*}
-     * @memberof Background
+     * @memberof Studio
      */
     public hasInstalled(): Promise<boolean> {
         return this.jsFile.hasPatched();
@@ -465,7 +455,7 @@ export class Background implements Disposable {
      * 卸载
      *
      * @return {*}  {Promise<boolean>} 是否成功卸载
-     * @memberof Background
+     * @memberof Studio
      */
     public async uninstall(): Promise<boolean> {
         await this.removeLegacyCssPatch();
@@ -475,7 +465,7 @@ export class Background implements Disposable {
     /**
      * 释放资源
      *
-     * @memberof Background
+     * @memberof Studio
      */
     public dispose(): void {
         this.disposables.forEach(n => n.dispose());

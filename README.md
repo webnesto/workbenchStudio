@@ -1,209 +1,132 @@
-<!-- 中英文切换 -->
-<div align="right">
+# Workbench Studio
 
-**English** | [中文](./README.zh-CN.md) | [日本語](./README.ja-JP.md)
+VSCode design customizations: workspace-aware backgrounds, typography overrides, and more.
 
-</div>
-<!-- 中英文切换 end -->
+A fork of [shalldie/vscode-background](https://github.com/shalldie/vscode-background) — see [Acknowledgements](#acknowledgements).
 
-<!-- 封面区域 -->
-<div align="center">
+What this fork adds:
 
-![logo](./images/logo.png)
+- **Per-workspace backgrounds.** Each window can show a different configuration for its workspace, simultaneously, without restart.
+- **Workspace-aware live updates.** Most settings apply within ~1.5s of save — no Apply-and-Reload.
+- **`style` passthrough on fullscreen.** Arbitrary CSS (including freeform opacity), the upstream feature this fork was originally created for.
+- **Typography overrides for sidebar tree views.** Font family, size, weight, and freeform CSS for explorer / source control / search / extensions / debug panes.
 
-<h1><b>vscode-background</b></h1>
+## Status
 
-### Bring background images to your [Visual Studio Code](https://code.visualstudio.com)
+Personal fork. Not on the marketplace. Install from a built `.vsix`.
 
-`fullscreen`、`editor`、`sidebar`、`auxiliarybar`、`panel`、`carousel`、`custom images/styles`...
+## Install
 
-[GitHub](https://github.com/shalldie/vscode-background) | [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=shalldie.background)
-
-[![Version](https://img.shields.io/visual-studio-marketplace/v/shalldie.background?logo=visualstudiocode&style=flat-square)](https://marketplace.visualstudio.com/items?itemName=shalldie.background)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/shalldie.background?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=shalldie.background)
-[![Ratings](https://img.shields.io/visual-studio-marketplace/r/shalldie.background?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=shalldie.background)
-[![Stars](https://img.shields.io/github/stars/shalldie/vscode-background?logo=github&style=flat-square)](https://github.com/shalldie/vscode-background)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/shalldie/vscode-background/ci.yml?branch=master&label=build&style=flat-square)](https://github.com/shalldie/vscode-background/actions)
-[![License](https://img.shields.io/github/license/shalldie/vscode-background?style=flat-square)](https://github.com/shalldie/vscode-background)
-
-Multiple sections, `editor`、`sidebar`、`auxiliarybar`、`panel`
-
-<img width="760" src="./images/section.png">
-
-`fullscreen`
-
-<img width="760" src="./images/fullscreen.png">
-
-</div>
-
-</div>
-
-<!-- 封面区域 end -->
-
-## Installation
-
-There are 2 ways to install this extension:
-
-1. Install from [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=shalldie.background).
-2. Search `shalldie.background` from vscode.
-
-## Custom
-
-User defined requirements can be met by changing the configuration(`settings.json`).
-
-[what's `settings.json`](https://code.visualstudio.com/docs/getstarted/settings#_settingsjson) | [where?](https://github.com/shalldie/vscode-background/issues/274)
-
-## Config
-
-<img width="760" src="./images/containers.png">
-
-### Global Config
-
-| Name                 |   Type    | Default | Description                             |
-| :------------------- | :-------: | :-----: | :-------------------------------------- |
-| `background.enabled` | `Boolean` | `true`  | Whether to enable background extension. |
-
-### Editor Section Config
-
-Edit `background.editor` to config editor section.
-
-| Name       |    Type    |   Default    | Description                                                          |
-| :--------- | :--------: | :----------: | :------------------------------------------------------------------- |
-| `useFront` | `boolean`  |    `true`    | Place the image above or below the code.                             |
-| `style`    |  `object`  |     `{}`     | Custom style for images. [MDN Reference][mdn-css]                    |
-| `styles`   | `object[]` | `[{},{},{}]` | Each style of editor section image.                                  |
-| `images`   | `string[]` |     `[]`     | Custom images, supports online and local images, as well as folders. |
-| `interval` |  `number`  |     `0`      | Seconds of interval for carousel, default `0` to disabled.           |
-| `random`   | `boolean`  |   `false`    | Whether to randomly display images.                                  |
-
-[mdn-css]: https://developer.mozilla.org/docs/Web/CSS
-
-example:
-
-```json
-{
-  "background.editor": {
-    "useFront": true,
-    "style": {
-      "background-position": "100% 100%",
-      "background-size": "auto",
-      "opacity": 0.6
-    },
-    "styles": [{}, {}, {}],
-    // `images` supports online and local images, as well as folders.
-    "images": [
-      // online images, only `https` is allowed.
-      "https://hostname/online.jpg",
-      // local images
-      "file:///local/path/img.jpeg",
-      "/home/xie/downloads/img.gif",
-      "C:/Users/xie/img.bmp",
-      "D:\\downloads\\images\\img.webp",
-      // local folders
-      "/home/xie/images",
-      // data URL
-      "data:image/*;base64,<base64-data>"
-    ],
-    "interval": 0,
-    "random": false
-  }
-}
+```bash
+npm install
+npm run package
+code --install-extension workbench-studio-0.1.0.vsix --force
 ```
 
-### Fullscreen、Sidebar、Auxiliarybar、Panel Section Config
+Then in VSCode: `> Workbench Studio: Enable and apply Workbench Studio`. Reload when prompted.
 
-Edit `background.fullscreen`、`background.sidebar`、`background.auxiliarybar`、`background.panel` to config these sections.
+To remove cleanly: `> Workbench Studio: Uninstall the extension` (the extension's uninstall hook restores `workbench.desktop.main.js`).
 
-| Name       |    Type    | Default  | Description                                                                              |
-| :--------- | :--------: | :------: | :--------------------------------------------------------------------------------------- |
-| `images`   | `string[]` |   `[]`   | Custom images, supports online and local images, as well as folders.                     |
-| `opacity`  |  `number`  |  `0.1`   | Opacity of the images, alias to [opacity][mdn-opacity], `0.1 ~ 0.3` recommended.         |
-| `size`     |  `string`  | `cover`  | Alias to [background-size][mdn-background-size], `cover` to self-adaption (recommended). |
-| `position` |  `string`  | `center` | Alias to [background-position][mdn-background-position], default `center`.               |
-| `interval` |  `number`  |   `0`    | Seconds of interval for carousel, default `0` to disabled.                               |
-| `random`   | `boolean`  | `false`  | Whether to randomly display images.                                                      |
+## Settings
 
-[mdn-opacity]: https://developer.mozilla.org/docs/Web/CSS/opacity
-[mdn-background-size]: https://developer.mozilla.org/docs/Web/CSS/background-size
-[mdn-background-position]: https://developer.mozilla.org/docs/Web/CSS/background-position
+All settings live under `workbenchStudio.*`.
 
-example：
+### Top level
 
-```json
-{
-  "background.fullscreen": {
-    // `images` supports online and local images, as well as folders.
-    "images": [
-      // online images, only `https` is allowed.
-      "https://hostname/online.jpg",
-      // local images
-      "file:///local/path/img.jpeg",
-      "/home/xie/downloads/img.gif",
-      "C:/Users/xie/img.bmp",
-      "D:\\downloads\\images\\img.webp",
-      // local folders
-      "/home/xie/images",
-      // data URL
-      "data:image/*;base64,<base64-data>"
-    ],
-    "opacity": 0.1,
-    "size": "cover",
-    "position": "center",
-    "interval": 0,
-    "random": false
-  },
-  // `sidebar` and `panel` have the same config as `fullscreen`
-  "background.sidebar": {},
-  "background.panel": {}
-}
+| Setting                   | Type    | Default | Description                                  |
+|---------------------------|---------|---------|----------------------------------------------|
+| `workbenchStudio.enabled` | boolean | `true`  | Whether the patcher is active.               |
+
+### Backgrounds
+
+`workbenchStudio.backgrounds.editor`:
+
+| Field      | Type     | Default      | Description                                       |
+|------------|----------|--------------|---------------------------------------------------|
+| `useFront` | boolean  | `true`       | Place image above (`::after`) or below the code.  |
+| `style`    | object   | `{}`         | CSS applied to all images.                        |
+| `styles`   | object[] | `[{},{},{}]` | Per-image CSS (indexed by editor slot).           |
+| `images`   | string[] | `[]`         | Image sources (see below).                        |
+| `interval` | number   | `0`          | Seconds between rotations. `0` disables.          |
+| `random`   | boolean  | `false`      | Pick random images on initial load and rotation.  |
+
+`workbenchStudio.backgrounds.fullscreen` / `.sidebar` / `.panel` / `.auxiliarybar`:
+
+| Field      | Type     | Default     | Description                                  |
+|------------|----------|-------------|----------------------------------------------|
+| `images`   | string[] | `[]`        | Image sources.                               |
+| `opacity`  | number   | `0.1`       | `0.0`–`1.0`.                                 |
+| `size`     | string   | `"cover"`   | CSS `background-size`.                       |
+| `position` | string   | `"center"`  | CSS `background-position`.                   |
+| `interval` | number   | `0`         | Seconds between rotations. `0` disables.     |
+| `random`   | boolean  | `false`     | Random rotation order.                       |
+| `style`    | object   | `{}`        | (fullscreen only) freeform CSS passthrough.  |
+
+#### Image sources
+
+```jsonc
+"images": [
+    "https://hostname/online.jpg",
+    "file:///local/path/img.jpeg",
+    "/home/xie/downloads/img.gif",
+    "C:/Users/xie/img.bmp",
+    "D:\\downloads\\images\\img.webp",
+    "/home/xie/images",                  // folder — picks up all images inside
+    "data:image/*;base64,<base64-data>"
+]
 ```
 
-## Quick Command
+#### Workspace awareness
 
-Click the 「Background」 button on the right-bottom of statusbar, all commands of `background` will appear:
+Background settings resolve per-workspace per-window. Open three windows on three different workspaces and each shows its own configuration at the same time.
 
-<img width="660" src="./images/commands.png">
+Where to put settings:
 
-## Common Issues
+- **User settings** (`~/Library/Application Support/Code/User/settings.json` on macOS) — global default.
+- **Single-folder workspace**: `.vscode/settings.json` overrides user.
+- **Multi-root workspace**: the `.code-workspace` file's `"settings": {}` block (folder-level `settings.json` is silently ignored for window-scoped settings in multi-root).
 
-> **This extension works by editting the vscode's js file.**
+Updates apply live for backgrounds — no reload needed.
 
-Please refer to the [Common Issues](docs/common-issues.md) if you met some problems.
+### Typography
 
-## Uninstall
+`workbenchStudio.typography.explorer` — overrides the font of all sidebar tree views (explorer, source control, search results, extensions, run-and-debug).
 
-Please refer to [Common Issues#how-to-uninstall](docs/common-issues.md#how-to-uninstall).
+| Field        | Type   | Default | Description                                          |
+|--------------|--------|---------|------------------------------------------------------|
+| `fontFamily` | string | `""`    | CSS `font-family`. Empty = use VSCode default.       |
+| `fontSize`   | number | `0`     | Pixels. `0` = use VSCode default.                    |
+| `fontWeight` | string | `""`    | CSS `font-weight` value. Empty = default.            |
+| `style`      | object | `{}`    | Freeform CSS passthrough (any property/value pairs). |
 
-## Contributors 🙏
+Typography is **not** workspace-aware in this version — changes require Apply-and-Reload.
 
-[<img alt="shalldie" src="https://avatars3.githubusercontent.com/u/9987486?v=4" width="80">](https://github.com/shalldie)
-[<img alt="suiyun39" src="https://avatars.githubusercontent.com/u/20502666?v=4" width="80">](https://github.com/suiyun39)
-[<img alt="frg2089" src="https://avatars.githubusercontent.com/u/42184238?v=4" width="80">](https://github.com/frg2089)
-[<img alt="AzureeDev" src="https://avatars.githubusercontent.com/u/23083011?v=4" width="80">](https://github.com/AzureeDev)
-[<img alt="tumit" src="https://avatars.githubusercontent.com/u/1756190?v=4" width="80">](https://github.com/tumit)
-[<img alt="asurinsaka" src="https://avatars.githubusercontent.com/u/8145535?v=4" width="80">](https://github.com/asurinsaka)
-[<img alt="u3u" src="https://avatars.githubusercontent.com/u/20062482?v=4" width="80">](https://github.com/u3u)
-[<img alt="kuresaru" src="https://avatars.githubusercontent.com/u/31172177?v=4" width="80">](https://github.com/kuresaru)
-[<img alt="Unthrottled" src="https://avatars.githubusercontent.com/u/15972415?v=4" width="80">](https://github.com/Unthrottled)
-[<img alt="rogeraabbccdd" src="https://avatars.githubusercontent.com/u/15815422?v=4" width="80">](https://github.com/rogeraabbccdd)
-[<img alt="rogeraabbccdd" src="https://avatars.githubusercontent.com/u/86603229?v=4" width="80">](https://github.com/SatoMasahiro2005)
+Note: VSCode's tree views use virtual scrolling with fixed inline row heights (`height: 22px` set per-row by JS). `line-height` only affects internal text positioning, not the row's outer height. To make rows visibly taller, also override `height`/`min-height` via the `style` passthrough — at the cost of slight scroll-position drift in long lists.
 
-## Contributing Guide
+## Commands
 
-Refer to [Contributing Guide](docs/contributing.md).
+| Command                                  | Title                              |
+|------------------------------------------|------------------------------------|
+| `extension.workbenchStudio.info`         | Welcome to Workbench Studio.       |
+| `extension.workbenchStudio.install`      | Enable and apply Workbench Studio. |
+| `extension.workbenchStudio.disable`      | Disable Workbench Studio.          |
+| `extension.workbenchStudio.uninstall`    | Uninstall the extension.           |
+| `extension.workbenchStudio.previewPatch` | [Dev] Preview Patch                |
 
-## Change Log
+The status bar shows `$(symbol-color) Studio` — click it to open the command palette filtered to Workbench Studio commands.
 
-You can checkout all our changes in our [CHANGELOG](https://github.com/shalldie/vscode-background/blob/master/CHANGELOG.md).
+## How it works
 
-## Share Your Images
+The extension modifies VSCode's `workbench.desktop.main.js` at activation time, injecting CSS and JS that run at workbench bootstrap. For workspace-aware sections, a runtime `<link>` tag reads per-workspace state from `runtime-state.css` (in the extension install dir) and a polling loop keeps the rendered styles in sync with settings — no reload required for backgrounds.
 
-We share background images [here](https://github.com/shalldie/vscode-background/issues/106).
+VSCode will warn that the installation is corrupted after patching. That's expected; the patch suppresses the toast. `> Workbench Studio: [Dev] Preview Patch` shows the actual JS being injected if you want to inspect it.
 
-## Migration from v1
+## Acknowledgements
 
-The configuration of v1 is outdated and currently maintains a certain level of compatibility. Please refer to [migration-from-v1.md](docs/migration-from-v1.md) for migration.
+This is a fork of [shalldie/vscode-background](https://github.com/shalldie/vscode-background) ([MIT](https://github.com/shalldie/vscode-background/blob/master/LICENSE.txt)). All credit for the original patching mechanism, multi-section config, and bulk of the implementation belongs to **shalldie** and the upstream contributors.
 
-## LICENSE
+This fork is unaffiliated with the upstream project and is not endorsed by them. **Do not file fork-specific bugs upstream** — file them on this repo. The upstream extension remains the right choice if you only need global background images.
 
-MIT
+## License
+
+MIT.

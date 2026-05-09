@@ -1,6 +1,6 @@
+import { AbsPatchGenerator, css } from '../../core/patches/base';
+import { ThemePatchGenerator } from '../../core/patches/theme';
 import { STATE_CSS_PATH } from '../../utils/constants';
-import { AbsPatchGenerator, css } from './PatchGenerator.base';
-import { ThemePatchGenerator } from './PatchGenerator.theme';
 
 export class FullscreenPatchGeneratorConfig {
     images = [] as string[];

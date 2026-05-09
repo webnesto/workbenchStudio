@@ -1,25 +1,24 @@
-import { css } from './PatchGenerator.base';
-import { FullscreenPatchGenerator, FullscreenPatchGeneratorConfig } from './PatchGenerator.fullscreen';
-import { buildSectionLoaderScript } from './PatchGenerator.section-loader';
-import { ThemePatchGenerator } from './PatchGenerator.theme';
+import { css } from '../../core/patches/base';
+import { ThemePatchGenerator } from '../../core/patches/theme';
+import { FullscreenPatchGenerator, FullscreenPatchGeneratorConfig } from './fullscreen';
+import { buildSectionLoaderScript } from './section-loader';
 
-export class SidebarPatchGeneratorConfig extends FullscreenPatchGeneratorConfig {}
+export class AuxiliarybarPatchGeneratorConfig extends FullscreenPatchGeneratorConfig {}
 
-export class SidebarPatchGenerator extends FullscreenPatchGenerator<SidebarPatchGeneratorConfig> {
-    protected cssvariable = '--background-sidebar-img';
+export class AuxiliarybarPatchGenerator extends FullscreenPatchGenerator<AuxiliarybarPatchGeneratorConfig> {
+    protected cssvariable = '--background-auxiliarybar-img';
 
     protected getStyle(): string {
         const { size, position, opacity } = this.curConfig;
 
         return css`
-            .split-view-view > .part.sidebar::after {
+            .split-view-view > .part.auxiliarybar::after {
                 content: '';
                 position: absolute;
                 width: 100%;
                 height: 100%;
                 top: 0;
                 left: 0;
-                z-index: 99;
                 background-position: ${position};
                 background-repeat: no-repeat;
                 background-size: ${size};
@@ -34,30 +33,25 @@ export class SidebarPatchGenerator extends FullscreenPatchGenerator<SidebarPatch
 }
 
 /**
- * Workspace-aware sidebar generator (Phase 2B).
- *
- * Uses CSS-variable-driven scaffold + runtime loader (via the shared
- * buildSectionLoaderScript helper). Reads workspaces[key].sidebar from the
- * extension's runtime-state.css file. Per-window per-workspace correct.
+ * Workspace-aware auxiliarybar generator (Phase 2B).
  */
-export class WorkspaceAwareSidebarPatchGenerator extends SidebarPatchGenerator {
+export class WorkspaceAwareAuxiliarybarPatchGenerator extends AuxiliarybarPatchGenerator {
     protected imageRequired = false;
 
     protected getStyle(): string {
         return css`
-            .split-view-view > .part.sidebar::after {
+            .split-view-view > .part.auxiliarybar::after {
                 content: '';
                 position: absolute;
                 width: 100%;
                 height: 100%;
                 top: 0;
                 left: 0;
-                z-index: 99;
-                background-position: var(--bg-sb-position, center);
+                background-position: var(--bg-ax-position, center);
                 background-repeat: no-repeat;
-                background-size: var(--bg-sb-size, cover);
+                background-size: var(--bg-ax-size, cover);
                 pointer-events: none;
-                opacity: var(--bg-sb-opacity, 0.1);
+                opacity: var(--bg-ax-opacity, 0.1);
                 transition: 1s;
                 mix-blend-mode: var(${ThemePatchGenerator.cssMixBlendMode});
                 background-image: var(${this.cssvariable});
@@ -67,9 +61,9 @@ export class WorkspaceAwareSidebarPatchGenerator extends SidebarPatchGenerator {
 
     protected getScript(): string {
         return buildSectionLoaderScript({
-            sectionName: 'sidebar',
+            sectionName: 'auxiliarybar',
             cssVarImg: this.cssvariable,
-            cssVarPrefix: 'bg-sb'
+            cssVarPrefix: 'bg-ax'
         });
     }
 }

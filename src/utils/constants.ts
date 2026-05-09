@@ -5,8 +5,17 @@ import pkg from '../../package.json';
 /** 版本号 */
 export const VERSION: string = pkg.version;
 
+/** Settings namespace for all Workbench Studio configuration. */
+export const CONFIG_NAMESPACE = 'workbenchStudio';
+
+/** Subkey under CONFIG_NAMESPACE for the backgrounds feature module. */
+export const BACKGROUNDS_KEY = 'backgrounds';
+
+/** Subkey under CONFIG_NAMESPACE for the typography feature module. */
+export const TYPOGRAPHY_KEY = 'typography';
+
 /** 版本标识 */
-export const BACKGROUND_VER = 'background.ver';
+export const BACKGROUND_VER = 'workbenchStudio.ver';
 
 /** 文件编码 */
 export const ENCODING = 'utf-8';

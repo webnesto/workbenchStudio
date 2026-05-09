@@ -1,97 +1,57 @@
-# vscode-background
+# Workbench Studio
 
-Welcome to use `background@${VERSION}`, the new version has more features and will bring you a better coding experience!
+Welcome to `Workbench Studio@${VERSION}`.
 
-Different system paths and folders are supported in `images` now:
+A fork of [shalldie/vscode-background](https://github.com/shalldie/vscode-background) — see the [README](https://github.com/shalldie/vscode-background) for the full settings reference and acknowledgements.
 
-```json
+## Quick start
+
+All settings live under `workbenchStudio.*`. Examples:
+
+```jsonc
 {
-  "images": [
-    // online images, only `https` is allowed.
+  "workbenchStudio.enabled": true,
+
+  "workbenchStudio.backgrounds.fullscreen": {
+    "images": ["file:///path/to/image.png"],
+    "opacity": 0.15,
+    "interval": 0
+  },
+
+  "workbenchStudio.backgrounds.editor": {
+    "images": ["file:///path/to/editor.png"],
+    "useFront": true,
+    "interval": 30,
+    "random": true
+  },
+
+  "workbenchStudio.typography.explorer": {
+    "fontFamily": "\"JetBrains Mono\", monospace",
+    "fontSize": 13
+  }
+}
+```
+
+## Workspace awareness
+
+Backgrounds resolve per-workspace per-window — open multiple windows on different workspaces and each shows its own configuration simultaneously. Settings can live in user, single-folder `.vscode/settings.json`, or a `.code-workspace` file's `"settings"` block.
+
+Background updates apply live (~1.5s after save). Typography and `enabled` changes still need an Apply-and-Reload — the extension will prompt.
+
+## Image sources
+
+```jsonc
+"images": [
     "https://hostname/online.jpg",
-    // local images
     "file:///local/path/img.jpeg",
     "/home/xie/downloads/img.gif",
     "C:/Users/xie/img.bmp",
     "D:\\downloads\\images\\img.webp",
-    // local folders
     "/home/xie/images",
-    // data URL
     "data:image/*;base64,<base64-data>"
-  ]
-}
+]
 ```
 
-## More configurable sections
+## Quick command access
 
-Each section can be customized with features such as `custom images/styles`、`carousel`、`random display`...
-
-<img src="../images/containers.png" width="800" />
-
-## Clear and concise configuration
-
-Each section has independent configuration, see [README.md](https://github.com/shalldie/vscode-background) to learn more.
-
-```json
-{
-  "background.sidebar": {...},     // sidebar
-  "background.editor": {...},      // editor
-  "background.panel": {...},       // panel
-  "background.fullscreen": {...},  // fullscreen
-  "background.auxiliarybar": {...} // auxiliarybar
-}
-```
-
-## Quick Command
-
-Click the 「Background」 button on the right-bottom of statusbar, all commands of `background` will appear:
-
-<img width="660" src="../images/commands.png">
-
-## No more warnings
-
-No more warnings about `Your Code installation appears to be corrupt`.
-
-## Migration from v1
-
-> The configuration of v1 is outdated and needs to be migrated. Currently maintaining a certain level of compatibility.
-
-v1:
-
-```json
-{
-  "background.useFront": true,
-  "background.customImages": [],
-  "background.interval": 0,
-  "background.style": {},
-  "background.styles": []
-}
-```
-
-v2, migrated to `background.editor`:
-
-```json
-{
-  "background.editor": {
-    "useFront": true,
-    "images": [],
-    ...
-  }
-}
-```
-
-## Prefer v1 default images?
-
-You can download the default images of v1 version [from here](https://github.com/shalldie/vscode-background/issues/106#issuecomment-392311967), or use the config below:
-
-```json
-{
-  "background.editor": {
-    "images": [
-      "https://user-images.githubusercontent.com/9987486/40583669-d6189844-61c5-11e8-89e3-c52ad153da09.png",
-      "https://user-images.githubusercontent.com/9987486/40583670-d6478c9e-61c5-11e8-9551-6b55eacc7b8d.png",
-      "https://user-images.githubusercontent.com/9987486/40583671-d676c6e4-61c5-11e8-94cb-34ec4a12fa01.png"
-    ]
-  }
-}
-```
+The status bar shows `$(symbol-color) Studio` — click to open the command palette filtered to Workbench Studio commands.

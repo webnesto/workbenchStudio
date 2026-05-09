@@ -10,3 +10,8 @@ node_modules
 .idea
 
 .comate
+
+# Local design / tooling artifacts
+logo.af
+logo.af~lock~
+*.eno-project

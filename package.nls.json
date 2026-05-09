@@ -1,30 +1,35 @@
 {
-    "extension.background.command.info.title": "Welcome to background.",
-    "extension.background.command.install.title": "Enable and apply the background.",
-    "extension.background.command.disable.title": "Disable the background.",
-    "extension.background.command.uninstall.title": "Uninstall the extension.",
+    "extension.workbenchStudio.command.info.title": "Welcome to Workbench Studio.",
+    "extension.workbenchStudio.command.install.title": "Enable and apply Workbench Studio.",
+    "extension.workbenchStudio.command.disable.title": "Disable Workbench Studio.",
+    "extension.workbenchStudio.command.uninstall.title": "Uninstall the extension.",
 
-    "extension.background.enabled.description": "Whether to enable background extension.",
+    "extension.workbenchStudio.enabled.description": "Whether to enable the Workbench Studio patcher.",
 
-    "extension.background.editor.description": "Editor section config.",
-    "extension.background.editor.useFront": "Place the image above or below the code.",
-    "extension.background.editor.style": "Custom style for images. [MDN Reference](https://developer.mozilla.org/docs/Web/CSS)",
-    "extension.background.editor.styles": "Each style of editor section image.",
-    "extension.background.editor.images": "Custom images, Example:\n```\n\"images\": [\n  // online images, only `https` is allowed.\n  \"https://hostname/online.jpg\",\n  // local images\n  \"file:///local/path/img.jpeg\",\n  \"/home/xie/downloads/img.gif\",\n  \"C:/Users/xie/img.bmp\",\n  \"D:\\\\downloads\\\\images\\\\img.webp\",\n  // local folders\n  \"/home/xie/images\",\n  // data URL\n  \"data:image/*;base64,<base64-data>\"\n]\n```",
-    "extension.background.editor.interval": "Seconds of interval for carousel, default `0` to disabled.",
-    "extension.background.editor.random": "Whether to randomly display images.",
+    "extension.workbenchStudio.backgrounds.editor.description": "Editor section background config.",
+    "extension.workbenchStudio.backgrounds.editor.useFront": "Place the image above or below the code.",
+    "extension.workbenchStudio.backgrounds.editor.style": "Custom style for images. [MDN Reference](https://developer.mozilla.org/docs/Web/CSS)",
+    "extension.workbenchStudio.backgrounds.editor.styles": "Each style of editor section image.",
+    "extension.workbenchStudio.backgrounds.editor.images": "Custom images, Example:\n```\n\"images\": [\n  // online images, only `https` is allowed.\n  \"https://hostname/online.jpg\",\n  // local images\n  \"file:///local/path/img.jpeg\",\n  \"/home/xie/downloads/img.gif\",\n  \"C:/Users/xie/img.bmp\",\n  \"D:\\\\downloads\\\\images\\\\img.webp\",\n  // local folders\n  \"/home/xie/images\",\n  // data URL\n  \"data:image/*;base64,<base64-data>\"\n]\n```",
+    "extension.workbenchStudio.backgrounds.editor.interval": "Seconds of interval for carousel, default `0` to disabled.",
+    "extension.workbenchStudio.backgrounds.editor.random": "Whether to randomly display images.",
 
-    "extension.background.fullscreen.description": "Fullscreen section config.",
-    "extension.background.fullscreen.opacity": "Opacity of the images, alias to [opacity](https://developer.mozilla.org/docs/Web/CSS/opacity),\n\n`0.1 ~ 0.3` recommended, it will be reset to the default `0.1` if exceeds the limit range `0 ~ 0.6`.",
-    "extension.background.fullscreen.size": "Alias to [background-size](https://developer.mozilla.org/docs/Web/CSS/background-size), `cover` to self-adaption (recommended).",
-    "extension.background.fullscreen.position": "Alias to [background-position](https://developer.mozilla.org/docs/Web/CSS/background-position), default `center`.",
-    "extension.background.fullscreen.interval": "Seconds of interval for carousel, default `0` to disabled.",
-    "extension.background.fullscreen.random": "Whether to randomly display images.",
+    "extension.workbenchStudio.backgrounds.fullscreen.description": "Fullscreen section background config.",
+    "extension.workbenchStudio.backgrounds.fullscreen.opacity": "Opacity of the images, alias to [opacity](https://developer.mozilla.org/docs/Web/CSS/opacity). `0.1 ~ 0.3` recommended.",
+    "extension.workbenchStudio.backgrounds.fullscreen.size": "Alias to [background-size](https://developer.mozilla.org/docs/Web/CSS/background-size), `cover` to self-adaption (recommended).",
+    "extension.workbenchStudio.backgrounds.fullscreen.position": "Alias to [background-position](https://developer.mozilla.org/docs/Web/CSS/background-position), default `center`.",
+    "extension.workbenchStudio.backgrounds.fullscreen.interval": "Seconds of interval for carousel, default `0` to disabled.",
+    "extension.workbenchStudio.backgrounds.fullscreen.random": "Whether to randomly display images.",
 
-    "extension.background.sidebar.description": "Sidebar section config.",
-    "extension.background.auxiliarybar.description": "Auxiliarybar section config.",
-    "extension.background.panel.description": "Panel section config.",
+    "extension.workbenchStudio.backgrounds.sidebar.description": "Sidebar section background config.",
+    "extension.workbenchStudio.backgrounds.auxiliarybar.description": "Auxiliarybar section background config.",
+    "extension.workbenchStudio.backgrounds.panel.description": "Panel section background config.",
 
-    "extension.background.common.deprecation": "*Deprecated*, it has been moved to `background.editor`.",
-    "extension.background.urlProtocol.error": "The image url must use https or file protocol."
+    "extension.workbenchStudio.typography.explorer.description": "Font overrides for sidebar tree views (explorer, source control, search results, extensions, debug). Changes require Apply-and-Reload.",
+    "extension.workbenchStudio.typography.explorer.fontFamily": "CSS `font-family` value, e.g. `\"JetBrains Mono\", monospace`. Empty to use the default.",
+    "extension.workbenchStudio.typography.explorer.fontSize": "Font size in pixels. `0` to use the default.",
+    "extension.workbenchStudio.typography.explorer.fontWeight": "CSS `font-weight` value. Empty to use the default.",
+    "extension.workbenchStudio.typography.explorer.style": "Freeform CSS passthrough — any property/value pairs (e.g. `letter-spacing`, `line-height`, `color`). Applied after the typed fields, so duplicate keys here override.",
+
+    "extension.workbenchStudio.urlProtocol.error": "The image url must use https or file protocol."
 }

@@ -1,4 +1,4 @@
-import { css, WithoutImagesPatchGenerator } from './PatchGenerator.base';
+import { css, WithoutImagesPatchGenerator } from './base';
 
 // https://github.com/Microsoft/vscode/blob/main/src/vs/workbench/services/integrity/electron-sandbox/integrityService.ts#L147
 // https://github.com/microsoft/vscode-loc/blob/main/i18n/vscode-language-pack-zh-hans/translations/main.i18n.json#L14343

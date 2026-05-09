@@ -1,4 +1,4 @@
-import { css, WithoutImagesPatchGenerator } from './PatchGenerator.base';
+import { css, WithoutImagesPatchGenerator } from './base';
 
 export class ThemePatchGenerator extends WithoutImagesPatchGenerator {
     /**
