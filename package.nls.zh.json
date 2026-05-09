@@ -1,0 +1,30 @@
+{
+    "extension.background.command.info.title": "欢迎使用 background 插件",
+    "extension.background.command.install.title": "激活/应用插件",
+    "extension.background.command.disable.title": "禁用插件",
+    "extension.background.command.uninstall.title": "卸载插件",
+
+    "extension.background.enabled.description": "background 插件是否启用",
+
+    "extension.background.editor.description": "编辑器区域配置。",
+    "extension.background.editor.useFront": "把图片放在代码的上方或下方。",
+    "extension.background.editor.style": "自定义图片样式。 [MDN Reference](https://developer.mozilla.org/docs/Web/CSS)",
+    "extension.background.editor.styles": "为每一个图片自定义样式。",
+    "extension.background.editor.images": "自定义图片，例如：\n```\n\"images\": [\n  // 在线图片，只允许 `https` 协议\n  \"https://hostname/online.jpg\",\n  // 本地图片\n  \"file:///local/path/img.jpeg\",\n  \"/home/xie/downloads/img.gif\",\n  \"C:/Users/xie/img.bmp\",\n  \"D:\\\\downloads\\\\images\\\\img.webp\",\n  // 文件夹\n  \"/home/xie/images\",\n  // data URL\n  \"data:image/*;base64,<base64-data>\"\n]\n```",
+    "extension.background.editor.interval": "单位 `秒`，轮播时候图片切换间隔，默认 `0` 表示不开启。",
+    "extension.background.editor.random": "是否随机展示图片。",
+
+    "extension.background.fullscreen.description": "全屏区域配置。",
+    "extension.background.fullscreen.opacity": "透明度，等同 css [opacity](https://developer.mozilla.org/docs/Web/CSS/opacity)，\n\n建议 `0.1 ~ 0.3`，超出限制范围 `0 ~ 0.6` 会重置为 `0.1`。",
+    "extension.background.fullscreen.size": "等同 css [background-size](https://developer.mozilla.org/docs/Web/CSS/background-size), 建议使用 `cover` 来自适应。",
+    "extension.background.fullscreen.position": "等同 css [background-position](https://developer.mozilla.org/docs/Web/CSS/background-position)， 默认值 `center`。",
+    "extension.background.fullscreen.interval": "单位 `秒`，轮播时候图片切换间隔，默认 `0` 表示不开启。",
+    "extension.background.fullscreen.random": "是否随机展示图片。",
+
+    "extension.background.sidebar.description": "侧边栏区域配置。",
+    "extension.background.auxiliarybar.description": "辅助栏区域配置。",
+    "extension.background.panel.description": "面板区域配置。",
+
+    "extension.background.common.deprecation": "*Deprecated*, 过时的配置，请迁移到 `background.editor`。",
+    "extension.background.urlProtocol.error": "图片路径必须使用 https 或者 file 协议。"
+}

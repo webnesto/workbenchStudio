@@ -1,0 +1,11 @@
+{
+    "Show `background` commands": "Show `background` commands",
+    "Background extension has been uninstalled. See you next time!": "Background extension has been uninstalled. See you next time!",
+    "Reload vscode": "Reload vscode",
+    "Background@{version} is ready! Apply to take effect.": "Background@{version} is ready! Apply to take effect.",
+    "More": "More",
+    "Background will be disabled.": "Background will be disabled.",
+    "Configuration has been changed, click to apply.": "Configuration has been changed, click to apply.",
+    "Apply and Reload": "Apply and Reload",
+    "Disable and Reload": "Disable and Reload"
+}
