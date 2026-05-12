@@ -23,6 +23,7 @@ Workspace-aware background images for 5 workbench sections. Each section has its
 | `interval` | number (seconds)       | `0`        | Seconds between rotations. `0` disables rotation.                                       |
 | `random`   | boolean                | `false`    | Pick images randomly on initial render and rotation.                                    |
 | `style`    | object                 | `{}`       | Freeform CSS applied to all images in this section. (Fullscreen and editor only in schema; the others support it internally — use per-image objects.) |
+| `blendMode`| string (enum)          | `""`       | CSS [`mix-blend-mode`](https://developer.mozilla.org/docs/Web/CSS/mix-blend-mode) for this section. Empty = theme default. See [Blend mode](#blend-mode). |
 
 **`useFront` (editor / sidebar / panel / auxiliarybar — NOT fullscreen):**
 
@@ -85,6 +86,41 @@ Supported on editor, sidebar, panel, auxiliarybar. **Not supported on fullscreen
 `useFront: false` — image moves behind. For editor: pseudo flips to `::before`, image sits behind code. For sidebar/panel/auxiliarybar: pseudo z-index drops to `-1`, opacity defaults to `1`, blend disabled.
 
 Per-image `useFront` overrides apply at rotation time. Inside an `images[]` object set `"useFront": true|false` to flip that specific image.
+
+## Blend mode
+
+Every section's image layer is blended into the content beneath it via CSS [`mix-blend-mode`](https://developer.mozilla.org/docs/Web/CSS/mix-blend-mode). By default this is theme-driven (`screen` on dark themes, none on light) — see [Defaults](defaults.md#theme-driven-mix-blend-mode).
+
+`blendMode` (string) on any section overrides that default. Allowed values match the CSS enum:
+
+```text
+normal, multiply, screen, overlay, darken, lighten,
+color-dodge, color-burn, hard-light, soft-light,
+difference, exclusion, hue, saturation, color, luminosity,
+plus-darker, plus-lighter
+```
+
+Empty string (or unset) = theme default.
+
+**Precedence (high → low):**
+
+1. Per-image `mix-blend-mode` inside an `images[]` object entry
+2. Section-level `blendMode`
+3. `useFront: false` forces `normal` (editor / sidebar / panel / auxiliarybar — keeps the behind-content wallpaper clean)
+4. Theme default (`screen` on dark, none on light)
+
+```jsonc
+"workbenchStudio.backgrounds.editor": {
+  "blendMode": "soft-light",
+  "images": [
+    "file:///wall.jpg",
+    // this one overrides the section's soft-light just for itself
+    { "background-image": "file:///accent.png", "mix-blend-mode": "hard-light" }
+  ]
+}
+```
+
+Live-updates with the rest of the section config — no Apply-and-Reload.
 
 ## Workspace awareness
 

@@ -104,18 +104,29 @@ try {
         const position = cfg.position || 'center';
         const random = !!cfg.random;
         const interval = cfg.interval || 0;
+        // Section-level mix-blend-mode override. Empty / unset falls back to
+        // either useFront:false's 'normal' rule or the theme default.
+        const sectionBlend = (typeof cfg.blendMode === 'string' && cfg.blendMode.length)
+            ? cfg.blendMode
+            : null;
+
+        function applyBlendVar(useFront) {
+            if (sectionBlend) {
+                document.body.style.setProperty(CSS_VAR_BLEND, sectionBlend);
+            } else if (!useFront) {
+                // useFront:false drops the blend so the image renders as a clean
+                // wallpaper (no screen-blend distortion against the surface beneath).
+                document.body.style.setProperty(CSS_VAR_BLEND, 'normal');
+            } else {
+                document.body.style.removeProperty(CSS_VAR_BLEND);
+            }
+        }
 
         document.body.style.setProperty(CSS_VAR_OPACITY, String(opacity));
         document.body.style.setProperty(CSS_VAR_SIZE, size);
         document.body.style.setProperty(CSS_VAR_POSITION, position);
         document.body.style.setProperty(CSS_VAR_Z_INDEX, sectionUseFront ? '99' : '-1');
-        // useFront:false also drops the blend so the image renders as a clean
-        // wallpaper (no screen-blend distortion against the surface beneath).
-        if (sectionUseFront) {
-            document.body.style.removeProperty(CSS_VAR_BLEND);
-        } else {
-            document.body.style.setProperty(CSS_VAR_BLEND, 'normal');
-        }
+        applyBlendVar(sectionUseFront);
         if (typeof cfg.surfaceOpacity === 'number') {
             document.body.style.setProperty(CSS_VAR_SURFACE_OPACITY, String(cfg.surfaceOpacity));
         } else {
@@ -163,11 +174,7 @@ try {
                 imgUseFront = !(v === false || v === 'false');
             }
             document.body.style.setProperty(CSS_VAR_Z_INDEX, imgUseFront ? '99' : '-1');
-            if (imgUseFront) {
-                document.body.style.removeProperty(CSS_VAR_BLEND);
-            } else {
-                document.body.style.setProperty(CSS_VAR_BLEND, 'normal');
-            }
+            applyBlendVar(imgUseFront);
             // Per-image opacity override falls back to section default.
             const imgOpacity = ('opacity' in perImage) ? perImage.opacity : opacity;
             document.body.style.setProperty(CSS_VAR_OPACITY, String(imgOpacity));

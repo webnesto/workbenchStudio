@@ -21,9 +21,14 @@ Set in [src/core/patches/theme.ts](../src/core/patches/theme.ts):
 
 This is what makes images visible *through* the content at low opacity in dark themes — `screen` blends pixel values rather than overlaying.
 
-**Override**: set `mix-blend-mode` in your section's `style` or in a per-image override object. Your value wins because it appears after the auto-injected value in the cascade.
+**Override precedence (high → low):**
 
-When `useFront: false` for editor / sidebar / panel / auxiliarybar, the loader forces `mix-blend-mode: normal` so the behind-content image renders cleanly without theme-blend distortion.
+1. Per-image `mix-blend-mode` inside an `images[]` object entry (wins for that image only).
+2. Section-level `workbenchStudio.backgrounds.<section>.blendMode` — typed knob with an enum of valid CSS blend keywords (`normal`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `color-dodge`, `color-burn`, `hard-light`, `soft-light`, `difference`, `exclusion`, `hue`, `saturation`, `color`, `luminosity`, `plus-darker`, `plus-lighter`). Empty / unset falls through to the next rule.
+3. `useFront: false` (editor / sidebar / panel / auxiliarybar): the loader forces `mix-blend-mode: normal` so the behind-content image renders cleanly without theme-blend distortion.
+4. Theme default above.
+
+All four paths live-update (~1.5s) — no Apply-and-Reload. See [Blend mode](backgrounds.md#blend-mode) for examples.
 
 ## Always-stripped CSS keys
 
@@ -91,7 +96,7 @@ Resolved in [src/core/Studio.ts](../src/core/Studio.ts) `resolveSurfaceOpacities
 | Folder glob expansion          | No                    | Mandatory.                                                       |
 | `pointer-events` strip         | No                    | Footgun protection.                                              |
 | `z-index` strip                | No                    | Footgun protection.                                              |
-| Theme `mix-blend-mode`         | Yes                   | Set in `style` or per-image object.                              |
+| Theme `mix-blend-mode`         | Yes (knob)            | `backgrounds.<section>.blendMode` or per-image `mix-blend-mode`. |
 | Editor `.minimap` opacity      | Yes (knob)            | `backgrounds.editor.minimapOpacity`.                             |
 | Editor surface opacity         | Yes (knob)            | `surfaceOpacity.editor`.                                         |
 | Pane surface opacity           | Yes (knob)            | `surfaceOpacity.{sidebar,panel,auxiliarybar}`.                   |

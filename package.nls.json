@@ -24,6 +24,7 @@
     "extension.workbenchStudio.backgrounds.fullscreen.interval": "Seconds of interval for carousel, default `0` to disabled.",
     "extension.workbenchStudio.backgrounds.fullscreen.random": "Whether to randomly display images.",
     "extension.workbenchStudio.backgrounds.section.useFront": "`true` (default): image renders as a translucent overlay above the pane content. `false`: image renders behind. Per-image override supported inside an `images[]` object entry.",
+    "extension.workbenchStudio.backgrounds.section.blendMode": "CSS [`mix-blend-mode`](https://developer.mozilla.org/docs/Web/CSS/mix-blend-mode) for this section's background. Empty (default) follows the theme: `screen` on dark themes, none on light. Common values: `normal`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `hard-light`, `soft-light`. Per-image `mix-blend-mode` inside an `images[]` object entry overrides this for that image.",
 
     "extension.workbenchStudio.surfaceOpacity.description": "Theme-background opacity per section. `1` keeps the theme color fully opaque (default); `0` makes the section's background transparent so per-section background images can show through. Smart-defaults to `0` when the section has its own background images.",
     "extension.workbenchStudio.surfaceOpacity.editor": "Opacity (0..1) of the editor's theme background color. `0` strips so images show; `1` keeps theme default.",

@@ -16,6 +16,13 @@ export class EditorPatchGeneratorConfig {
      */
     minimapOpacity = 0.8;
     /**
+     * CSS `mix-blend-mode` override for the editor section. Empty / undefined
+     * falls back to the theme default (`unset` on light, `screen` on dark).
+     * Per-image `mix-blend-mode` inside an `images[]` object entry overrides
+     * this for that image.
+     */
+    blendMode?: string;
+    /**
      * Surface opacity (0..1) for the editor's theme background color. Resolved
      * by Studio.ts smart defaults (0 if editor has images or fullscreen.useFront
      * is false; otherwise 1). Not directly settable here — use
@@ -288,7 +295,7 @@ try {
                 "z-index: " + (imgUseFront ? '99' : 'initial') + "; " +
                 "pointer-events: " + (imgUseFront ? 'none' : 'initial') + "; " +
                 "transition: 0.3s; background-repeat: no-repeat; " +
-                "mix-blend-mode: var(${blendModeVar}); " +
+                "mix-blend-mode: var(--bg-editor-blend, var(${blendModeVar})); " +
                 styleStr + " }"
             );
         }
@@ -321,6 +328,14 @@ try {
             document.body.style.setProperty('--bg-surface-editor-opacity', String(cfg.surfaceOpacity));
         } else {
             document.body.style.removeProperty('--bg-surface-editor-opacity');
+        }
+
+        // Section-level blend-mode override. Empty / unset falls back to the
+        // theme default (cssMixBlendMode CSS var).
+        if (cfg && typeof cfg.blendMode === 'string' && cfg.blendMode.length) {
+            document.body.style.setProperty('--bg-editor-blend', cfg.blendMode);
+        } else {
+            document.body.style.removeProperty('--bg-editor-blend');
         }
 
         if (!cfg || !(cfg.images && cfg.images.length)) {

@@ -18,6 +18,14 @@ export class FullscreenPatchGeneratorConfig {
     random = false;
     style: Record<string, string> = {};
     /**
+     * CSS `mix-blend-mode` override for this section. Empty string / undefined
+     * falls back to the theme default (`unset` on light themes, `screen` on
+     * dark). Any valid CSS blend keyword: `normal`, `multiply`, `screen`,
+     * `overlay`, `darken`, `lighten`, etc. Per-image `mix-blend-mode` inside an
+     * `images[]` object entry overrides this for that image.
+     */
+    blendMode?: string;
+    /**
      * Surface opacity (0..1) for this section's theme background color.
      * Resolved by Studio.ts smart defaults (0 if section has images; otherwise 1).
      * Not directly settable on the section — use
@@ -154,7 +162,7 @@ export class WorkspaceAwareFullscreenPatchGenerator extends FullscreenPatchGener
                 background-position: var(--bg-fs-position, center);
                 opacity: var(--bg-fs-opacity, 0.1);
                 transition: 1s;
-                mix-blend-mode: var(${ThemePatchGenerator.cssMixBlendMode});
+                mix-blend-mode: var(--bg-fs-blend, var(${ThemePatchGenerator.cssMixBlendMode}));
                 background-image: var(${this.cssvariable});
             }
         `;
@@ -203,6 +211,7 @@ try {
 
         if (!cfg) {
             document.body.style.setProperty(CSS_VAR_IMG, 'none');
+            document.body.style.removeProperty('--bg-fs-blend');
             return;
         }
 
@@ -218,6 +227,11 @@ try {
         document.body.style.setProperty('--bg-fs-opacity', String(opacity));
         document.body.style.setProperty('--bg-fs-size', size);
         document.body.style.setProperty('--bg-fs-position', position);
+        if (typeof cfg.blendMode === 'string' && cfg.blendMode.length) {
+            document.body.style.setProperty('--bg-fs-blend', cfg.blendMode);
+        } else {
+            document.body.style.removeProperty('--bg-fs-blend');
+        }
 
         let tag = document.getElementById(STYLE_TAG_ID);
         if (!tag) {

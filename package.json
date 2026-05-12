@@ -157,6 +157,9 @@
               "maximum": 1,
               "markdownDescription": "%extension.workbenchStudio.backgrounds.editor.minimapOpacity%"
             },
+            "blendMode": {
+              "$ref": "#/properties/workbenchStudio.backgrounds.fullscreen/properties/blendMode"
+            },
             "style": {
               "type": "object",
               "default": {
@@ -243,6 +246,32 @@
               "type": "boolean",
               "default": false,
               "markdownDescription": "%extension.workbenchStudio.backgrounds.fullscreen.random%"
+            },
+            "blendMode": {
+              "type": "string",
+              "default": "",
+              "enum": [
+                "",
+                "normal",
+                "multiply",
+                "screen",
+                "overlay",
+                "darken",
+                "lighten",
+                "color-dodge",
+                "color-burn",
+                "hard-light",
+                "soft-light",
+                "difference",
+                "exclusion",
+                "hue",
+                "saturation",
+                "color",
+                "luminosity",
+                "plus-darker",
+                "plus-lighter"
+              ],
+              "markdownDescription": "%extension.workbenchStudio.backgrounds.section.blendMode%"
             }
           },
           "markdownDescription": "%extension.workbenchStudio.backgrounds.fullscreen.description%"
@@ -280,6 +309,9 @@
               "type": "boolean",
               "default": true,
               "markdownDescription": "%extension.workbenchStudio.backgrounds.section.useFront%"
+            },
+            "blendMode": {
+              "$ref": "#/properties/workbenchStudio.backgrounds.fullscreen/properties/blendMode"
             }
           },
           "markdownDescription": "%extension.workbenchStudio.backgrounds.sidebar.description%"
@@ -317,6 +349,9 @@
               "type": "boolean",
               "default": true,
               "markdownDescription": "%extension.workbenchStudio.backgrounds.section.useFront%"
+            },
+            "blendMode": {
+              "$ref": "#/properties/workbenchStudio.backgrounds.fullscreen/properties/blendMode"
             }
           },
           "markdownDescription": "%extension.workbenchStudio.backgrounds.auxiliarybar.description%"
@@ -354,6 +389,9 @@
               "type": "boolean",
               "default": true,
               "markdownDescription": "%extension.workbenchStudio.backgrounds.section.useFront%"
+            },
+            "blendMode": {
+              "$ref": "#/properties/workbenchStudio.backgrounds.fullscreen/properties/blendMode"
             }
           },
           "markdownDescription": "%extension.workbenchStudio.backgrounds.panel.description%"
