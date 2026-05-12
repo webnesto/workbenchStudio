@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { tmpdir } from 'os';
+import { homedir, tmpdir } from 'os';
 import path from 'path';
 
 import vscode, { Disposable, l10n, Uri } from 'vscode';
@@ -12,9 +12,12 @@ import { SidebarPatchGenerator } from '../features/backgrounds/sidebar';
 import {
     BACKGROUNDS_KEY,
     CONFIG_NAMESPACE,
+    CUSTOM_CSS_FILES_KEY,
+    CUSTOM_CSS_KEY,
     ENCODING,
     STATE_CSS_PATH,
     STATE_JSON_PATH,
+    SURFACE_OPACITY_KEY,
     TOUCH_JSFILE_PATH,
     TYPOGRAPHY_KEY,
     VERSION
@@ -57,7 +60,9 @@ export class Studio implements Disposable {
             panel: bg.panel || {},
             auxiliarybar: bg.auxiliarybar || {},
             typography: {
-                explorer: tg.explorer || {}
+                explorer: tg.explorer || {},
+                tabs: tg.tabs || {},
+                paneTitles: tg.paneTitles || {}
             }
         };
     }
@@ -70,6 +75,14 @@ export class Studio implements Disposable {
      * @memberof Studio
      */
     private disposables: Disposable[] = [];
+
+    /**
+     * Active fs.watch handles, keyed by resolved absolute file path. Each
+     * entry observes a user-provided `workbenchStudio.cssFiles` path; on file
+     * change the handler triggers `writeWorkspaceState` so the runtime loader
+     * picks up the new content within ~1.5s.
+     */
+    private cssFileWatchers = new Map<string, fs.FSWatcher>();
 
     // #endregion
 
@@ -94,26 +107,82 @@ export class Studio implements Disposable {
         return false;
     }
 
-    public async showWelcome() {
-        const docDir = path.join(__dirname, '../../docs');
-        let content = await fs.promises.readFile(path.join(docDir, 'welcome.md'), ENCODING);
-        // 替换图片内联为base64
-        content = content.replace(/\.\.\/images[^\")]+/g, (relativePath: string) => {
-            const imgPath = path.join(vscodePath.extRoot, 'images', relativePath);
+    public showWelcome() {
+        return this.showDoc('welcome');
+    }
 
-            return (
-                `data:image/${path.extname(imgPath).slice(1) || 'png'};base64,` +
-                Buffer.from(fs.readFileSync(imgPath)).toString('base64')
-            );
-        });
-        // 替换变量
-        const paramsMap = {
-            VERSION
-        };
-        for (const [key, value] of Object.entries(paramsMap)) {
-            content = content.replaceAll('${' + key + '}', value);
+    /**
+     * Render any markdown file from `docs/` in an in-VSCode markdown preview.
+     *
+     * Syncs ALL doc files to a shared tmp dir (with image and version
+     * substitutions applied), then opens the requested one. Writing them all
+     * to the same dir makes relative `.md` links between docs resolve
+     * correctly in the markdown preview.
+     *
+     * Inline-substitutes images from the extension's `images/` dir as base64
+     * data URLs and replaces `${VERSION}` template tokens.
+     */
+    public async showDoc(name: string) {
+        const docDir = path.join(__dirname, '../../docs');
+        const tmpDocDir = path.join(tmpdir(), 'workbench-studio-docs');
+        await fs.promises.mkdir(tmpDocDir, { recursive: true });
+
+        let docFiles: string[];
+        try {
+            docFiles = (await fs.promises.readdir(docDir)).filter(f => f.endsWith('.md'));
+        } catch {
+            docFiles = [];
         }
-        vsHelp.showMarkdown(content, 'welcome');
+
+        for (const file of docFiles) {
+            const srcPath = path.join(docDir, file);
+            const tmpPath = path.join(tmpDocDir, file);
+            let content = await fs.promises.readFile(srcPath, ENCODING);
+            content = content.replace(/\.\.\/images[^\")]+/g, (relativePath: string) => {
+                try {
+                    const imgPath = path.join(vscodePath.extRoot, 'images', relativePath);
+                    return (
+                        `data:image/${path.extname(imgPath).slice(1) || 'png'};base64,` +
+                        Buffer.from(fs.readFileSync(imgPath)).toString('base64')
+                    );
+                } catch {
+                    return relativePath;
+                }
+            });
+            const paramsMap = { VERSION } as Record<string, string>;
+            for (const [key, value] of Object.entries(paramsMap)) {
+                content = content.replaceAll('${' + key + '}', value);
+            }
+            await fs.promises.writeFile(tmpPath, content, ENCODING);
+        }
+
+        const targetPath = path.join(tmpDocDir, `${name}.md`);
+        if (!fs.existsSync(targetPath)) {
+            vscode.window.showErrorMessage(`Workbench Studio: documentation page "${name}" not found.`);
+            return;
+        }
+        vscode.commands.executeCommand('markdown.showPreviewToSide', vscode.Uri.file(targetPath));
+    }
+
+    /**
+     * QuickPick menu listing the doc pages — the entry point for the
+     * "Open Documentation" command.
+     */
+    public async pickDoc() {
+        const items: Array<vscode.QuickPickItem & { name: string }> = [
+            { name: 'welcome', label: 'Welcome', description: 'Overview and quickstart' },
+            { name: 'backgrounds', label: 'Backgrounds', description: 'All 5 sections, per-image overrides, recipes' },
+            { name: 'typography', label: 'Typography', description: 'Explorer / tabs / pane title fonts' },
+            { name: 'css', label: 'Custom CSS', description: 'Raw CSS injection escape hatch' },
+            { name: 'defaults', label: 'Defaults', description: "What's auto-applied and how to override" },
+            { name: 'dangers', label: 'Dangers', description: 'Footguns and recovery procedures' }
+        ];
+        const pick = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Workbench Studio: pick a documentation page'
+        });
+        if (pick) {
+            this.showDoc(pick.name);
+        }
     }
 
     /**
@@ -259,6 +328,80 @@ export class Studio implements Disposable {
         throw new Error('workbench-studio: failed to acquire state-file lock after retries');
     }
 
+    /**
+     * Resolve a user-provided CSS file path. Accepts:
+     *  - `file://` URIs
+     *  - `~/...` home-relative paths
+     *  - Absolute paths
+     *  - Relative paths (resolved against the first workspace folder)
+     */
+    private resolveCssFilePath(p: string): string {
+        if (!p) return '';
+        if (p.startsWith('file://')) {
+            try {
+                return vscode.Uri.parse(p).fsPath;
+            } catch {
+                return p;
+            }
+        }
+        if (p.startsWith('~/') || p === '~') {
+            return path.join(homedir(), p.slice(p === '~' ? 1 : 2));
+        }
+        if (path.isAbsolute(p)) return p;
+        const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        return ws ? path.join(ws, p) : p;
+    }
+
+    /**
+     * Read all configured CSS files, returning their concatenated content
+     * (newline-separated). Missing / unreadable files contribute the empty
+     * string — no surfaced errors, since this is a power-user knob.
+     */
+    private async readCssFiles(paths: string[]): Promise<string> {
+        const results = await Promise.all(
+            paths.map(async p => {
+                const resolved = this.resolveCssFilePath(p);
+                if (!resolved) return '';
+                try {
+                    return await fs.promises.readFile(resolved, ENCODING);
+                } catch {
+                    return '';
+                }
+            })
+        );
+        return results.filter(s => s && s.length).join('\n');
+    }
+
+    /**
+     * Sync the active `fs.watch` set with the resolved list of user CSS files.
+     * Each watch fires `writeWorkspaceState` so the runtime loader picks up
+     * file edits within ~1.5s (matching the settings-change live update).
+     */
+    private reconcileCssWatchers(resolvedPaths: string[]) {
+        const wanted = new Set(resolvedPaths.filter(p => p && p.length));
+
+        for (const [p, w] of this.cssFileWatchers) {
+            if (!wanted.has(p)) {
+                try {
+                    w.close();
+                } catch {}
+                this.cssFileWatchers.delete(p);
+            }
+        }
+
+        for (const p of wanted) {
+            if (this.cssFileWatchers.has(p)) continue;
+            try {
+                const w = fs.watch(p, () => {
+                    this.writeWorkspaceState();
+                });
+                this.cssFileWatchers.set(p, w);
+            } catch {
+                // File may not exist yet (user hasn't created it) — try again on next reconcile.
+            }
+        }
+    }
+
     private async doWriteWorkspaceState(): Promise<void> {
         try {
             let state: any = { version: 1, workspaces: {} };
@@ -287,13 +430,47 @@ export class Studio implements Disposable {
             const panelGen = new PanelPatchGenerator(panelRaw);
             const auxiliarybarGen = new AuxiliarybarPatchGenerator(auxiliarybarRaw);
 
+            // Resolve surface opacity per section. User-explicit values win;
+            // otherwise smart-default to 0 (transparent) when the section has
+            // its own background images; otherwise 1 (theme color visible).
+            const surfaceOpacity = this.resolveSurfaceOpacities(folderUri, {
+                editor: (editorGen.config.images || []).length > 0,
+                sidebar: (sidebarGen.config.images || []).length > 0,
+                panel: (panelGen.config.images || []).length > 0,
+                auxiliarybar: (auxiliarybarGen.config.images || []).length > 0
+            });
+
+            // Raw CSS injection — accept string or string[], normalize to one string.
+            const rawCss = cfg.get<any>(CUSTOM_CSS_KEY);
+            const inlineCss = Array.isArray(rawCss)
+                ? rawCss.filter(s => typeof s === 'string').join('\n')
+                : typeof rawCss === 'string'
+                  ? rawCss
+                  : '';
+
+            // CSS file paths — resolve, read, watch.
+            const rawCssFiles = cfg.get<any>(CUSTOM_CSS_FILES_KEY);
+            const cssFilePaths = (
+                Array.isArray(rawCssFiles)
+                    ? rawCssFiles
+                    : typeof rawCssFiles === 'string' && rawCssFiles
+                      ? [rawCssFiles]
+                      : []
+            ).filter((s: any) => typeof s === 'string' && s.length);
+            const resolvedFilePaths = cssFilePaths.map(p => this.resolveCssFilePath(p));
+            this.reconcileCssWatchers(resolvedFilePaths);
+            const fileCss = await this.readCssFiles(cssFilePaths);
+
+            const customCss = [inlineCss, fileCss].filter(s => s && s.length).join('\n');
+
             const key = this.getWorkspaceKey();
             state.workspaces[key] = {
-                fullscreen: fullscreenGen.config,
-                editor: editorGen.config,
-                sidebar: sidebarGen.config,
-                panel: panelGen.config,
-                auxiliarybar: auxiliarybarGen.config
+                fullscreen: { ...fullscreenGen.config },
+                editor: { ...editorGen.config, surfaceOpacity: surfaceOpacity.editor },
+                sidebar: { ...sidebarGen.config, surfaceOpacity: surfaceOpacity.sidebar },
+                panel: { ...panelGen.config, surfaceOpacity: surfaceOpacity.panel },
+                auxiliarybar: { ...auxiliarybarGen.config, surfaceOpacity: surfaceOpacity.auxiliarybar },
+                css: customCss
             };
             // `current` is now used only as a fallback when the renderer-side
             // workspace detection (window.vscode.context.resolveConfiguration)
@@ -329,6 +506,59 @@ export class Studio implements Disposable {
         } catch (ex) {
             console.error('workbench-studio: failed to write workspace state', ex);
         }
+    }
+
+    /**
+     * Resolve effective surface opacity (0..1) for each section.
+     *
+     * Per-section flow:
+     *   1. If the user has any explicit value in any settings scope (user,
+     *      workspace, folder), use it.
+     *   2. Else if the section has its own background images, default to 0
+     *      (transparent — preserves the original always-strip behavior for
+     *      editor backgrounds and makes per-section images visible elsewhere).
+     *   3. Else 1 (theme background color visible — no change from VSCode default).
+     */
+    private resolveSurfaceOpacities(
+        folderUri: vscode.Uri | undefined,
+        flags: {
+            editor: boolean;
+            sidebar: boolean;
+            panel: boolean;
+            auxiliarybar: boolean;
+        }
+    ): { editor: number; sidebar: number; panel: number; auxiliarybar: number } {
+        const cfg = vscode.workspace.getConfiguration(CONFIG_NAMESPACE, folderUri);
+        const surfaces = cfg.get<any>(SURFACE_OPACITY_KEY) || {};
+        const inspected = cfg.inspect<any>(SURFACE_OPACITY_KEY);
+
+        const isExplicit = (section: string): boolean => {
+            const scopes = [
+                inspected?.globalValue,
+                inspected?.workspaceValue,
+                inspected?.workspaceFolderValue,
+                inspected?.globalLanguageValue,
+                inspected?.workspaceLanguageValue,
+                inspected?.workspaceFolderLanguageValue
+            ];
+            return scopes.some(s => s && typeof s === 'object' && typeof s[section] === 'number');
+        };
+
+        const resolveOne = (section: 'editor' | 'sidebar' | 'panel' | 'auxiliarybar'): number => {
+            if (isExplicit(section)) {
+                const v = surfaces[section];
+                if (typeof v === 'number') return Math.max(0, Math.min(1, v));
+            }
+            if (flags[section]) return 0;
+            return 1;
+        };
+
+        return {
+            editor: resolveOne('editor'),
+            sidebar: resolveOne('sidebar'),
+            panel: resolveOne('panel'),
+            auxiliarybar: resolveOne('auxiliarybar')
+        };
     }
 
     /**
@@ -469,6 +699,12 @@ export class Studio implements Disposable {
      */
     public dispose(): void {
         this.disposables.forEach(n => n.dispose());
+        for (const w of this.cssFileWatchers.values()) {
+            try {
+                w.close();
+            } catch {}
+        }
+        this.cssFileWatchers.clear();
     }
 
     // #endregion

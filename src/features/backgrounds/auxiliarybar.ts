@@ -40,6 +40,14 @@ export class WorkspaceAwareAuxiliarybarPatchGenerator extends AuxiliarybarPatchG
 
     protected getStyle(): string {
         return css`
+            .split-view-view > .part.auxiliarybar,
+            .split-view-view > .part.auxiliarybar > .content {
+                background-color: color-mix(
+                    in srgb,
+                    var(--vscode-auxiliaryBar-background) calc(var(--bg-surface-auxiliarybar-opacity, 1) * 100%),
+                    transparent
+                ) !important;
+            }
             .split-view-view > .part.auxiliarybar::after {
                 content: '';
                 position: absolute;
@@ -47,13 +55,14 @@ export class WorkspaceAwareAuxiliarybarPatchGenerator extends AuxiliarybarPatchG
                 height: 100%;
                 top: 0;
                 left: 0;
+                z-index: var(--bg-ax-z-index, 99);
                 background-position: var(--bg-ax-position, center);
                 background-repeat: no-repeat;
                 background-size: var(--bg-ax-size, cover);
                 pointer-events: none;
                 opacity: var(--bg-ax-opacity, 0.1);
                 transition: 1s;
-                mix-blend-mode: var(${ThemePatchGenerator.cssMixBlendMode});
+                mix-blend-mode: var(--bg-ax-blend, var(${ThemePatchGenerator.cssMixBlendMode}));
                 background-image: var(${this.cssvariable});
             }
         `;
@@ -63,7 +72,9 @@ export class WorkspaceAwareAuxiliarybarPatchGenerator extends AuxiliarybarPatchG
         return buildSectionLoaderScript({
             sectionName: 'auxiliarybar',
             cssVarImg: this.cssvariable,
-            cssVarPrefix: 'bg-ax'
+            cssVarPrefix: 'bg-ax',
+            afterSelector: '.split-view-view > .part.auxiliarybar::after',
+            surfaceOpacityVar: '--bg-surface-auxiliarybar-opacity'
         });
     }
 }

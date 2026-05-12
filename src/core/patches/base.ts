@@ -45,31 +45,70 @@ export function css(template: TemplateStringsArray, ...args: any[]) {
     }, '');
 }
 
-export class AbsPatchGenerator<T extends { images: string[] }> {
+export class AbsPatchGenerator<T extends { images: string[]; styles?: Array<Record<string, string>> }> {
     public config: T;
 
     /** 必须有图片 */
     protected imageRequired = true;
 
     constructor(config: T) {
-        const images = config?.images.filter(n => n.length) || [];
+        // Input `images` is a mixed array of strings and/or objects.
+        // Strings: bare URLs / paths / folders. Objects: must have a string
+        // `background-image` key; remaining keys are captured as per-image
+        // style overrides (parallel-indexed with the final images array).
+        const rawEntries: Array<string | Record<string, any>> = (config?.images as any) || [];
+
+        const images: string[] = [];
+        const styles: Array<Record<string, string>> = [];
+
+        for (const entry of rawEntries) {
+            if (typeof entry === 'string') {
+                if (!entry.length) continue;
+                const expanded = this.expandImageEntry(entry);
+                for (const url of expanded) {
+                    images.push(url);
+                    styles.push({});
+                }
+                continue;
+            }
+            if (entry && typeof entry === 'object') {
+                const url = entry['background-image'];
+                if (typeof url !== 'string' || !url.length) continue;
+                const { 'background-image': _bg, ...rest } = entry;
+                const perImageStyle: Record<string, string> = {};
+                for (const [k, v] of Object.entries(rest)) {
+                    if (k && v !== undefined && v !== null && v !== '') {
+                        perImageStyle[k] = String(v);
+                    }
+                }
+                const expanded = this.expandImageEntry(url);
+                for (const u of expanded) {
+                    images.push(u);
+                    styles.push({ ...perImageStyle });
+                }
+            }
+        }
+
         this.config = {
             ...config,
-            images: images.flatMap(img => {
-                // ------ online images，`https://` ------
-                // ------ data URL，`data:image/png;base64,<BASE64_ENCODED_DATA>` ------
-                if (['http', 'data:'].some(prefix => img.startsWith(prefix))) {
-                    return [img];
-                }
-                // ------ local ------
-                // 文件，模糊判断。`.xxx`
-                if (/\.[^\\/]+$/.test(img)) {
-                    return this.normalizeImageUrls([img]);
-                }
-                // 文件夹
-                return this.normalizeImageUrls(this.getImagesFromFolders([img]));
-            })
+            images,
+            styles
         };
+    }
+
+    private expandImageEntry(img: string): string[] {
+        // ------ online images，`https://` ------
+        // ------ data URL，`data:image/png;base64,<BASE64_ENCODED_DATA>` ------
+        if (['http', 'data:'].some(prefix => img.startsWith(prefix))) {
+            return [img];
+        }
+        // ------ local ------
+        // 文件，模糊判断。`.xxx`
+        if (/\.[^\\/]+$/.test(img)) {
+            return this.normalizeImageUrls([img]);
+        }
+        // 文件夹
+        return this.normalizeImageUrls(this.getImagesFromFolders([img]));
     }
 
     /**

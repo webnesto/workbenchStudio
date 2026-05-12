@@ -1,15 +1,16 @@
 # Workbench Studio
 
-VSCode design customizations: workspace-aware backgrounds, typography overrides, and more.
+VSCode design customizations: workspace-aware backgrounds, typography overrides, surface transparency, and a fullscreen-as-wallpaper mode.
 
 A fork of [shalldie/vscode-background](https://github.com/shalldie/vscode-background) — see [Acknowledgements](#acknowledgements).
 
-What this fork adds:
+## What this fork adds
 
-- **Per-workspace backgrounds.** Each window can show a different configuration for its workspace, simultaneously, without restart.
-- **Workspace-aware live updates.** Most settings apply within ~1.5s of save — no Apply-and-Reload.
-- **`style` passthrough on fullscreen.** Arbitrary CSS (including freeform opacity), the upstream feature this fork was originally created for.
-- **Typography overrides for sidebar tree views.** Font family, size, weight, and freeform CSS for explorer / source control / search / extensions / debug panes.
+- **Workspace-aware backgrounds** for editor, fullscreen, sidebar, panel, and auxiliary bar — different config per window, live updates without reload.
+- **Per-image overrides.** Mix strings and objects in a single `images[]`; each object can carry CSS overrides (opacity, size, position) plus a per-image `useFront` flip.
+- **Surface opacity** per section (editor / sidebar / panel / auxiliarybar) — continuous 0–1 blending of theme color with transparent for sections that have their own background images.
+- **Typography overrides** for sidebar tree views, editor tab labels, and pane titles. Family / size / weight / freeform CSS.
+- **Raw CSS injection** via `workbenchStudio.css` — power-user escape hatch for anything the typed modules don't cover. Workspace-aware, live update.
 
 ## Status
 
@@ -20,113 +21,72 @@ Personal fork. Not on the marketplace. Install from a built `.vsix`.
 ```bash
 npm install
 npm run package
-code --install-extension workbench-studio-0.1.0.vsix --force
+code --uninstall-extension eno.workbench-studio
+code --install-extension build/workbench-studio-0.1.0.vsix
 ```
 
 Then in VSCode: `> Workbench Studio: Enable and apply Workbench Studio`. Reload when prompted.
 
-To remove cleanly: `> Workbench Studio: Uninstall the extension` (the extension's uninstall hook restores `workbench.desktop.main.js`).
+To remove: `> Workbench Studio: Uninstall the extension` (the extension's uninstall hook restores `workbench.desktop.main.js`).
 
-## Settings
+`--force` is unreliable for same-version vsix builds; uninstall+install is the safe path during dev iteration.
 
-All settings live under `workbenchStudio.*`.
+## Documentation
 
-### Top level
+Full reference docs live in [`docs/`](docs/). Open from inside VSCode via `> Workbench Studio: Open Documentation` (QuickPick), or browse here:
 
-| Setting                   | Type    | Default | Description                                  |
-|---------------------------|---------|---------|----------------------------------------------|
-| `workbenchStudio.enabled` | boolean | `true`  | Whether the patcher is active.               |
+- **[Welcome](docs/welcome.md)** — overview, quickstart, links.
+- **[Backgrounds](docs/backgrounds.md)** — every section's settings, image source forms, per-image overrides, useFront, recipes.
+- **[Typography](docs/typography.md)** — explorer / tabs / pane-titles font controls.
+- **[Custom CSS](docs/css.md)** — `workbenchStudio.css` raw-injection escape hatch.
+- **[Defaults](docs/defaults.md)** — what's auto-applied, where, and how to override each item.
+- **[Dangers](docs/dangers.md)** — footguns, recovery procedures, the nuclear option.
 
-### Backgrounds
-
-`workbenchStudio.backgrounds.editor`:
-
-| Field      | Type     | Default      | Description                                       |
-|------------|----------|--------------|---------------------------------------------------|
-| `useFront` | boolean  | `true`       | Place image above (`::after`) or below the code.  |
-| `style`    | object   | `{}`         | CSS applied to all images.                        |
-| `styles`   | object[] | `[{},{},{}]` | Per-image CSS (indexed by editor slot).           |
-| `images`   | string[] | `[]`         | Image sources (see below).                        |
-| `interval` | number   | `0`          | Seconds between rotations. `0` disables.          |
-| `random`   | boolean  | `false`      | Pick random images on initial load and rotation.  |
-
-`workbenchStudio.backgrounds.fullscreen` / `.sidebar` / `.panel` / `.auxiliarybar`:
-
-| Field      | Type     | Default     | Description                                  |
-|------------|----------|-------------|----------------------------------------------|
-| `images`   | string[] | `[]`        | Image sources.                               |
-| `opacity`  | number   | `0.1`       | `0.0`–`1.0`.                                 |
-| `size`     | string   | `"cover"`   | CSS `background-size`.                       |
-| `position` | string   | `"center"`  | CSS `background-position`.                   |
-| `interval` | number   | `0`         | Seconds between rotations. `0` disables.     |
-| `random`   | boolean  | `false`     | Random rotation order.                       |
-| `style`    | object   | `{}`        | (fullscreen only) freeform CSS passthrough.  |
-
-#### Image sources
+## Quick start
 
 ```jsonc
-"images": [
-    "https://hostname/online.jpg",
-    "file:///local/path/img.jpeg",
-    "/home/xie/downloads/img.gif",
-    "C:/Users/xie/img.bmp",
-    "D:\\downloads\\images\\img.webp",
-    "/home/xie/images",                  // folder — picks up all images inside
-    "data:image/*;base64,<base64-data>"
-]
+{
+  "workbenchStudio.enabled": true,
+
+  "workbenchStudio.backgrounds.fullscreen": {
+    "images": ["file:///path/to/wallpaper.png"],
+    "opacity": 0.15
+  },
+
+  "workbenchStudio.backgrounds.editor": {
+    "images": ["file:///path/to/editor.png"],
+    "interval": 30,
+    "random": true
+  },
+
+  "workbenchStudio.typography.explorer": {
+    "fontFamily": "\"JetBrains Mono\", monospace",
+    "fontSize": 13
+  }
+}
 ```
 
-#### Workspace awareness
-
-Background settings resolve per-workspace per-window. Open three windows on three different workspaces and each shows its own configuration at the same time.
-
-Where to put settings:
-
-- **User settings** (`~/Library/Application Support/Code/User/settings.json` on macOS) — global default.
-- **Single-folder workspace**: `.vscode/settings.json` overrides user.
-- **Multi-root workspace**: the `.code-workspace` file's `"settings": {}` block (folder-level `settings.json` is silently ignored for window-scoped settings in multi-root).
-
-Updates apply live for backgrounds — no reload needed.
-
-### Typography
-
-`workbenchStudio.typography.explorer` — overrides the font of all sidebar tree views (explorer, source control, search results, extensions, run-and-debug).
-
-| Field        | Type   | Default | Description                                          |
-|--------------|--------|---------|------------------------------------------------------|
-| `fontFamily` | string | `""`    | CSS `font-family`. Empty = use VSCode default.       |
-| `fontSize`   | number | `0`     | Pixels. `0` = use VSCode default.                    |
-| `fontWeight` | string | `""`    | CSS `font-weight` value. Empty = default.            |
-| `style`      | object | `{}`    | Freeform CSS passthrough (any property/value pairs). |
-
-Typography is **not** workspace-aware in this version — changes require Apply-and-Reload.
-
-Note: VSCode's tree views use virtual scrolling with fixed inline row heights (`height: 22px` set per-row by JS). `line-height` only affects internal text positioning, not the row's outer height. To make rows visibly taller, also override `height`/`min-height` via the `style` passthrough — at the cost of slight scroll-position drift in long lists.
+Backgrounds update live (~1.5s after settings.json save). Typography and `workbenchStudio.enabled` need Apply-and-Reload — the extension will prompt.
 
 ## Commands
 
-| Command                                  | Title                              |
-|------------------------------------------|------------------------------------|
-| `extension.workbenchStudio.info`         | Welcome to Workbench Studio.       |
-| `extension.workbenchStudio.install`      | Enable and apply Workbench Studio. |
-| `extension.workbenchStudio.disable`      | Disable Workbench Studio.          |
-| `extension.workbenchStudio.uninstall`    | Uninstall the extension.           |
-| `extension.workbenchStudio.previewPatch` | [Dev] Preview Patch                |
+| Command                                            | Title                                                  |
+|----------------------------------------------------|--------------------------------------------------------|
+| `extension.workbenchStudio.install`                | Workbench Studio: Enable and apply Workbench Studio    |
+| `extension.workbenchStudio.disable`                | Workbench Studio: Disable Workbench Studio             |
+| `extension.workbenchStudio.uninstall`              | Workbench Studio: Uninstall the extension              |
+| `extension.workbenchStudio.info`                   | Workbench Studio: Welcome                              |
+| `extension.workbenchStudio.openDocs`               | Workbench Studio: Open Documentation                   |
+| `extension.workbenchStudio.previewPatch`           | Workbench Studio: [Dev] Preview Patch                  |
 
-The status bar shows `$(symbol-color) Studio` — click it to open the command palette filtered to Workbench Studio commands.
-
-## How it works
+## Architecture sketch
 
 The extension modifies VSCode's `workbench.desktop.main.js` at activation time, injecting CSS and JS that run at workbench bootstrap. For workspace-aware sections, a runtime `<link>` tag reads per-workspace state from `runtime-state.css` (in the extension install dir) and a polling loop keeps the rendered styles in sync with settings — no reload required for backgrounds.
 
-VSCode will warn that the installation is corrupted after patching. That's expected; the patch suppresses the toast. `> Workbench Studio: [Dev] Preview Patch` shows the actual JS being injected if you want to inspect it.
+See [.claude/CLAUDE.md](.claude/CLAUDE.md) for deeper architecture context (intended for code-assistant tools but readable).
 
 ## Acknowledgements
 
-This is a fork of [shalldie/vscode-background](https://github.com/shalldie/vscode-background) ([MIT](https://github.com/shalldie/vscode-background/blob/master/LICENSE.txt)). All credit for the original patching mechanism, multi-section config, and bulk of the implementation belongs to **shalldie** and the upstream contributors.
+This project is a fork of [shalldie/vscode-background](https://github.com/shalldie/vscode-background). The original extension's image-injection mechanism and patch-detection markers are preserved. The fork pivoted toward general workbench design customization and substantially rewrote the runtime to be workspace-aware.
 
-This fork is unaffiliated with the upstream project and is not endorsed by them. **Do not file fork-specific bugs upstream** — file them on this repo. The upstream extension remains the right choice if you only need global background images.
-
-## License
-
-MIT.
+License: MIT (same as upstream).

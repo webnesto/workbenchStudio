@@ -1,12 +1,14 @@
 # Workbench Studio
 
-Welcome to `Workbench Studio@${VERSION}`.
+Welcome to `Workbench Studio@${VERSION}` — a fork of [shalldie/vscode-background](https://github.com/shalldie/vscode-background), rewritten as a general VSCode workbench customization tool.
 
-A fork of [shalldie/vscode-background](https://github.com/shalldie/vscode-background) — see the [README](https://github.com/shalldie/vscode-background) for the full settings reference and acknowledgements.
+## What's in this version
+
+- **Workspace-aware backgrounds** for 5 sections (editor, fullscreen, sidebar, panel, auxiliary bar). Per-image overrides, live update.
+- **Typography** overrides for sidebar tree views.
+- **Surface opacity** per section (editor / sidebar / panel / auxiliarybar) — continuous 0–1 blending of theme color with transparent so per-section background images can show through.
 
 ## Quick start
-
-All settings live under `workbenchStudio.*`. Examples:
 
 ```jsonc
 {
@@ -14,13 +16,11 @@ All settings live under `workbenchStudio.*`. Examples:
 
   "workbenchStudio.backgrounds.fullscreen": {
     "images": ["file:///path/to/image.png"],
-    "opacity": 0.15,
-    "interval": 0
+    "opacity": 0.15
   },
 
   "workbenchStudio.backgrounds.editor": {
     "images": ["file:///path/to/editor.png"],
-    "useFront": true,
     "interval": 30,
     "random": true
   },
@@ -32,26 +32,22 @@ All settings live under `workbenchStudio.*`. Examples:
 }
 ```
 
-## Workspace awareness
+Background updates apply live (~1.5s after save). Typography and `enabled` need Apply-and-Reload — you'll be prompted.
 
-Backgrounds resolve per-workspace per-window — open multiple windows on different workspaces and each shows its own configuration simultaneously. Settings can live in user, single-folder `.vscode/settings.json`, or a `.code-workspace` file's `"settings"` block.
+## More documentation
 
-Background updates apply live (~1.5s after save). Typography and `enabled` changes still need an Apply-and-Reload — the extension will prompt.
+Open from the Command Palette:
 
-## Image sources
+- `Workbench Studio: Open Documentation` — pick from Backgrounds, Typography, Defaults, or Dangers.
 
-```jsonc
-"images": [
-    "https://hostname/online.jpg",
-    "file:///local/path/img.jpeg",
-    "/home/xie/downloads/img.gif",
-    "C:/Users/xie/img.bmp",
-    "D:\\downloads\\images\\img.webp",
-    "/home/xie/images",
-    "data:image/*;base64,<base64-data>"
-]
-```
+Or browse the docs directly:
+
+- **[Backgrounds](backgrounds.md)** — full reference for all 5 image sections, per-image overrides, `useFront`, recipes.
+- **[Typography](typography.md)** — pane fonts (explorer, tabs, pane titles).
+- **[Custom CSS](css.md)** — `workbenchStudio.css` raw-injection escape hatch.
+- **[Defaults](defaults.md)** — what gets auto-applied and how to override.
+- **[Dangers](dangers.md)** — footguns and how to recover.
 
 ## Quick command access
 
-The status bar shows `$(symbol-color) Studio` — click to open the command palette filtered to Workbench Studio commands.
+The status bar shows `$(symbol-color) Studio` — click to open the Command Palette filtered to Workbench Studio commands.

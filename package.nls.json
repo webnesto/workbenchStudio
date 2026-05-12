@@ -1,16 +1,19 @@
 {
     "extension.workbenchStudio.command.info.title": "Welcome to Workbench Studio.",
+    "extension.workbenchStudio.command.openDocs.title": "Open Documentation",
     "extension.workbenchStudio.command.install.title": "Enable and apply Workbench Studio.",
     "extension.workbenchStudio.command.disable.title": "Disable Workbench Studio.",
     "extension.workbenchStudio.command.uninstall.title": "Uninstall the extension.",
 
     "extension.workbenchStudio.enabled.description": "Whether to enable the Workbench Studio patcher.",
+    "extension.workbenchStudio.css.description": "Raw CSS injected into the workbench. Power-user escape hatch — bypasses typed feature modules and applies the value verbatim inside a managed `<style>` tag. Accepts a string or an array of strings (joined with newlines). **Workspace-aware** (live update ~1.5s). **Footgun warning**: bad CSS can hide UI or intercept clicks; see [Dangers](https://github.com/webnesto/workbenchStudio/blob/main/docs/dangers.md) for recovery.",
+    "extension.workbenchStudio.cssFiles.description": "Path or array of paths to `.css` files. Their contents are read and concatenated with `workbenchStudio.css` before injection. Paths accept `file://` URIs, `~/...` home-relative, absolute, or workspace-relative forms. File saves trigger a live re-read (~1.5s) via `fs.watch`. Same footgun caveat as `workbenchStudio.css`.",
 
     "extension.workbenchStudio.backgrounds.editor.description": "Editor section background config.",
-    "extension.workbenchStudio.backgrounds.editor.useFront": "Place the image above or below the code.",
+    "extension.workbenchStudio.backgrounds.editor.useFront": "Place the image above or below the code. Can be overridden per-image inside an `images[]` object entry.",
+    "extension.workbenchStudio.backgrounds.editor.minimapOpacity": "Opacity of the editor minimap (scroll preview on the right). Default `0.8` dims it so the background image can show through. `1` keeps minimap fully opaque, `0` hides it.",
     "extension.workbenchStudio.backgrounds.editor.style": "Custom style for images. [MDN Reference](https://developer.mozilla.org/docs/Web/CSS)",
-    "extension.workbenchStudio.backgrounds.editor.styles": "Each style of editor section image.",
-    "extension.workbenchStudio.backgrounds.editor.images": "Custom images, Example:\n```\n\"images\": [\n  // online images, only `https` is allowed.\n  \"https://hostname/online.jpg\",\n  // local images\n  \"file:///local/path/img.jpeg\",\n  \"/home/xie/downloads/img.gif\",\n  \"C:/Users/xie/img.bmp\",\n  \"D:\\\\downloads\\\\images\\\\img.webp\",\n  // local folders\n  \"/home/xie/images\",\n  // data URL\n  \"data:image/*;base64,<base64-data>\"\n]\n```",
+    "extension.workbenchStudio.backgrounds.editor.images": "Image list. Each entry is either a URL/path string, or an object `{ \"background-image\": \"<url>\", ...overrides }` for per-image CSS overrides. Example:\n```\n\"images\": [\n  // simple string forms\n  \"https://hostname/online.jpg\",\n  \"file:///local/path/img.jpeg\",\n  \"/home/xie/images\",\n  // per-image overrides\n  {\n    \"background-image\": \"file:///local/path/other.jpg\",\n    \"opacity\": \"0.4\",\n    \"background-size\": \"200px\"\n  }\n]\n```",
     "extension.workbenchStudio.backgrounds.editor.interval": "Seconds of interval for carousel, default `0` to disabled.",
     "extension.workbenchStudio.backgrounds.editor.random": "Whether to randomly display images.",
 
@@ -20,6 +23,13 @@
     "extension.workbenchStudio.backgrounds.fullscreen.position": "Alias to [background-position](https://developer.mozilla.org/docs/Web/CSS/background-position), default `center`.",
     "extension.workbenchStudio.backgrounds.fullscreen.interval": "Seconds of interval for carousel, default `0` to disabled.",
     "extension.workbenchStudio.backgrounds.fullscreen.random": "Whether to randomly display images.",
+    "extension.workbenchStudio.backgrounds.section.useFront": "`true` (default): image renders as a translucent overlay above the pane content. `false`: image renders behind. Per-image override supported inside an `images[]` object entry.",
+
+    "extension.workbenchStudio.surfaceOpacity.description": "Theme-background opacity per section. `1` keeps the theme color fully opaque (default); `0` makes the section's background transparent so per-section background images can show through. Smart-defaults to `0` when the section has its own background images.",
+    "extension.workbenchStudio.surfaceOpacity.editor": "Opacity (0..1) of the editor's theme background color. `0` strips so images show; `1` keeps theme default.",
+    "extension.workbenchStudio.surfaceOpacity.sidebar": "Opacity (0..1) of the sidebar pane's theme background color.",
+    "extension.workbenchStudio.surfaceOpacity.panel": "Opacity (0..1) of the panel's theme background color.",
+    "extension.workbenchStudio.surfaceOpacity.auxiliarybar": "Opacity (0..1) of the auxiliary bar's theme background color.",
 
     "extension.workbenchStudio.backgrounds.sidebar.description": "Sidebar section background config.",
     "extension.workbenchStudio.backgrounds.auxiliarybar.description": "Auxiliarybar section background config.",
@@ -30,6 +40,16 @@
     "extension.workbenchStudio.typography.explorer.fontSize": "Font size in pixels. `0` to use the default.",
     "extension.workbenchStudio.typography.explorer.fontWeight": "CSS `font-weight` value. Empty to use the default.",
     "extension.workbenchStudio.typography.explorer.style": "Freeform CSS passthrough — any property/value pairs (e.g. `letter-spacing`, `line-height`, `color`). Applied after the typed fields, so duplicate keys here override.",
+
+    "extension.workbenchStudio.typography.tabs.description": "Font overrides for editor tab labels (the file-name text inside each tab). Changes require Apply-and-Reload. Targets the label only; icons and tab chrome keep their defaults.",
+    "extension.workbenchStudio.typography.tabs.fontFamily": "CSS `font-family` value, e.g. `\"Input Mono\", monospace`. Empty to use the default.",
+    "extension.workbenchStudio.typography.tabs.fontSize": "Font size in pixels. `0` to use the default.",
+    "extension.workbenchStudio.typography.tabs.style": "Freeform CSS passthrough applied to the tab label.",
+
+    "extension.workbenchStudio.typography.paneTitles.description": "Font overrides for pane titles (the 'EXPLORER', 'OUTLINE', etc. headers at the top of each sidebar/panel/auxiliarybar pane) AND composite-bar tabs (e.g. 'CHAT' / 'CLAUDE CODE' view-switcher labels). Changes require Apply-and-Reload.",
+    "extension.workbenchStudio.typography.paneTitles.fontFamily": "CSS `font-family` value. Empty to use the default.",
+    "extension.workbenchStudio.typography.paneTitles.fontSize": "Font size in pixels. `0` to use the default.",
+    "extension.workbenchStudio.typography.paneTitles.style": "Freeform CSS passthrough applied to pane titles and composite tabs.",
 
     "extension.workbenchStudio.urlProtocol.error": "The image url must use https or file protocol."
 }

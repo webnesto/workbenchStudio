@@ -9,7 +9,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src",
-    "package": "vsce package",
+    "package": "vsce package --out build/",
     "prepare": "husky"
   },
   "publisher": "eno",
@@ -58,6 +58,11 @@
         "title": "%extension.workbenchStudio.command.uninstall.title%"
       },
       {
+        "command": "extension.workbenchStudio.openDocs",
+        "category": "Workbench Studio",
+        "title": "%extension.workbenchStudio.command.openDocs.title%"
+      },
+      {
         "command": "extension.workbenchStudio.previewPatch",
         "category": "Workbench Studio",
         "title": "[Dev] Preview Patch"
@@ -72,6 +77,59 @@
           "default": true,
           "markdownDescription": "%extension.workbenchStudio.enabled.description%"
         },
+        "workbenchStudio.css": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          ],
+          "default": "",
+          "markdownDescription": "%extension.workbenchStudio.css.description%"
+        },
+        "workbenchStudio.cssFiles": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          ],
+          "default": "",
+          "markdownDescription": "%extension.workbenchStudio.cssFiles.description%"
+        },
+        "workbenchStudio.surfaceOpacity": {
+          "type": "object",
+          "default": {},
+          "properties": {
+            "editor": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "markdownDescription": "%extension.workbenchStudio.surfaceOpacity.editor%"
+            },
+            "sidebar": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "markdownDescription": "%extension.workbenchStudio.surfaceOpacity.sidebar%"
+            },
+            "panel": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "markdownDescription": "%extension.workbenchStudio.surfaceOpacity.panel%"
+            },
+            "auxiliarybar": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "markdownDescription": "%extension.workbenchStudio.surfaceOpacity.auxiliarybar%"
+            }
+          },
+          "markdownDescription": "%extension.workbenchStudio.surfaceOpacity.description%"
+        },
         "workbenchStudio.backgrounds.editor": {
           "type": "object",
           "default": {
@@ -81,20 +139,23 @@
               "background-size": "auto",
               "opacity": 0.6
             },
-            "styles": [
-              {},
-              {},
-              {}
-            ],
             "images": [],
             "interval": 0,
-            "random": false
+            "random": false,
+            "minimapOpacity": 0.8
           },
           "properties": {
             "useFront": {
               "type": "boolean",
               "default": true,
               "markdownDescription": "%extension.workbenchStudio.backgrounds.editor.useFront%"
+            },
+            "minimapOpacity": {
+              "type": "number",
+              "default": 0.8,
+              "minimum": 0,
+              "maximum": 1,
+              "markdownDescription": "%extension.workbenchStudio.backgrounds.editor.minimapOpacity%"
             },
             "style": {
               "type": "object",
@@ -105,20 +166,14 @@
               },
               "markdownDescription": "%extension.workbenchStudio.backgrounds.editor.style%"
             },
-            "styles": {
-              "type": "array",
-              "default": [
-                {},
-                {},
-                {}
-              ],
-              "markdownDescription": "%extension.workbenchStudio.backgrounds.editor.styles%"
-            },
             "images": {
               "type": "array",
               "default": [],
               "items": {
-                "type": "string"
+                "oneOf": [
+                  { "type": "string" },
+                  { "type": "object" }
+                ]
               },
               "markdownDescription": "%extension.workbenchStudio.backgrounds.editor.images%"
             },
@@ -151,7 +206,10 @@
               "type": "array",
               "default": [],
               "items": {
-                "type": "string"
+                "oneOf": [
+                  { "type": "string" },
+                  { "type": "object" }
+                ]
               },
               "markdownDescription": "%extension.workbenchStudio.backgrounds.editor.images%"
             },
@@ -217,6 +275,11 @@
             },
             "random": {
               "$ref": "#/properties/workbenchStudio.backgrounds.fullscreen/properties/random"
+            },
+            "useFront": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "%extension.workbenchStudio.backgrounds.section.useFront%"
             }
           },
           "markdownDescription": "%extension.workbenchStudio.backgrounds.sidebar.description%"
@@ -249,6 +312,11 @@
             },
             "random": {
               "$ref": "#/properties/workbenchStudio.backgrounds.fullscreen/properties/random"
+            },
+            "useFront": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "%extension.workbenchStudio.backgrounds.section.useFront%"
             }
           },
           "markdownDescription": "%extension.workbenchStudio.backgrounds.auxiliarybar.description%"
@@ -281,6 +349,11 @@
             },
             "random": {
               "$ref": "#/properties/workbenchStudio.backgrounds.fullscreen/properties/random"
+            },
+            "useFront": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "%extension.workbenchStudio.backgrounds.section.useFront%"
             }
           },
           "markdownDescription": "%extension.workbenchStudio.backgrounds.panel.description%"
@@ -332,6 +405,70 @@
             }
           },
           "markdownDescription": "%extension.workbenchStudio.typography.explorer.description%"
+        },
+        "workbenchStudio.typography.tabs": {
+          "type": "object",
+          "default": {
+            "fontFamily": "",
+            "fontSize": 0,
+            "fontWeight": "",
+            "style": {}
+          },
+          "properties": {
+            "fontFamily": {
+              "type": "string",
+              "default": "",
+              "markdownDescription": "%extension.workbenchStudio.typography.tabs.fontFamily%"
+            },
+            "fontSize": {
+              "type": "number",
+              "default": 0,
+              "minimum": 0,
+              "maximum": 96,
+              "markdownDescription": "%extension.workbenchStudio.typography.tabs.fontSize%"
+            },
+            "fontWeight": {
+              "$ref": "#/properties/workbenchStudio.typography.explorer/properties/fontWeight"
+            },
+            "style": {
+              "type": "object",
+              "default": {},
+              "markdownDescription": "%extension.workbenchStudio.typography.tabs.style%"
+            }
+          },
+          "markdownDescription": "%extension.workbenchStudio.typography.tabs.description%"
+        },
+        "workbenchStudio.typography.paneTitles": {
+          "type": "object",
+          "default": {
+            "fontFamily": "",
+            "fontSize": 0,
+            "fontWeight": "",
+            "style": {}
+          },
+          "properties": {
+            "fontFamily": {
+              "type": "string",
+              "default": "",
+              "markdownDescription": "%extension.workbenchStudio.typography.paneTitles.fontFamily%"
+            },
+            "fontSize": {
+              "type": "number",
+              "default": 0,
+              "minimum": 0,
+              "maximum": 96,
+              "markdownDescription": "%extension.workbenchStudio.typography.paneTitles.fontSize%"
+            },
+            "fontWeight": {
+              "$ref": "#/properties/workbenchStudio.typography.explorer/properties/fontWeight"
+            },
+            "style": {
+              "type": "object",
+              "default": {},
+              "markdownDescription": "%extension.workbenchStudio.typography.paneTitles.style%"
+            }
+          },
+          "markdownDescription": "%extension.workbenchStudio.typography.paneTitles.description%"
         }
       }
     }

@@ -4,12 +4,26 @@ import { STATE_CSS_PATH } from '../../utils/constants';
 
 export class FullscreenPatchGeneratorConfig {
     images = [] as string[];
+    /**
+     * Per-image style overrides, parallel-indexed with `images`. Populated by
+     * AbsPatchGenerator's constructor when entries in the user-facing `images`
+     * config are objects (`{ "background-image": "...", ...overrides }`). Not
+     * user-configurable directly.
+     */
+    styles: Array<Record<string, string>> = [];
     opacity = 0.1; // 建议在 0.1 ~ 0.3
     size = 'cover' as 'cover' | 'contain';
     position = 'center';
     interval = 0;
     random = false;
     style: Record<string, string> = {};
+    /**
+     * Surface opacity (0..1) for this section's theme background color.
+     * Resolved by Studio.ts smart defaults (0 if section has images; otherwise 1).
+     * Not directly settable on the section — use
+     * `workbenchStudio.surfaceOpacity.<section>`.
+     */
+    surfaceOpacity?: number;
 }
 
 /**
@@ -193,6 +207,7 @@ try {
         }
 
         const images = cfg.images || [];
+        const perImageStyles = cfg.styles || [];
         const opacity = cfg.opacity != null ? cfg.opacity : 0.1;
         const size = cfg.size || 'cover';
         const position = cfg.position || 'center';
@@ -210,25 +225,47 @@ try {
             tag.id = STYLE_TAG_ID;
             document.head.appendChild(tag);
         }
-        const userStyle = Object.entries(style)
-            .map(function (e) { return e[0] + ': ' + e[1] + ';'; })
-            .join('');
-        tag.textContent = 'body::after { ' + userStyle + ' }';
+
+        function renderStyle(idx) {
+            const merged = Object.assign({}, style, perImageStyles[idx] || {});
+            const rules = Object.entries(merged)
+                .filter(function (e) {
+                    // Always strip pointer-events (clicks must pass through)
+                    // and z-index (footgun with no useful access surface).
+                    return e[0] !== 'pointer-events' && e[0] !== 'z-index';
+                })
+                .map(function (e) { return e[0] + ': ' + e[1] + ' !important;'; })
+                .join(' ');
+            tag.textContent = rules ? 'body::after { ' + rules + ' }' : '';
+        }
 
         if (!images.length) {
             document.body.style.setProperty(CSS_VAR_IMG, 'none');
+            renderStyle(0);
             return;
         }
 
         curIndex = -1;
 
         function getNext() {
-            if (random) return images[Math.floor(Math.random() * images.length)];
-            curIndex = (curIndex + 1) % images.length;
+            if (random) {
+                curIndex = Math.floor(Math.random() * images.length);
+            } else {
+                curIndex = (curIndex + 1) % images.length;
+            }
             return images[curIndex];
         }
         function setNext() {
-            document.body.style.setProperty(CSS_VAR_IMG, 'url(' + getNext() + ')');
+            const url = getNext();
+            document.body.style.setProperty(CSS_VAR_IMG, 'url(' + url + ')');
+            renderStyle(curIndex);
+            try {
+                console.log('[workbench-studio] fullscreen tick', {
+                    index: curIndex,
+                    url: url,
+                    style: perImageStyles[curIndex] || {}
+                });
+            } catch (e) {}
         }
 
         setNext();

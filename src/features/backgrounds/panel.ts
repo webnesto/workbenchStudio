@@ -40,6 +40,14 @@ export class WorkspaceAwarePanelPatchGenerator extends PanelPatchGenerator {
 
     protected getStyle(): string {
         return css`
+            .split-view-view > .part.panel,
+            .split-view-view > .part.panel > .content {
+                background-color: color-mix(
+                    in srgb,
+                    var(--vscode-panel-background) calc(var(--bg-surface-panel-opacity, 1) * 100%),
+                    transparent
+                ) !important;
+            }
             .split-view-view > .part.panel::after {
                 content: '';
                 position: absolute;
@@ -47,13 +55,14 @@ export class WorkspaceAwarePanelPatchGenerator extends PanelPatchGenerator {
                 height: 100%;
                 top: 0;
                 left: 0;
+                z-index: var(--bg-pn-z-index, 99);
                 background-position: var(--bg-pn-position, center);
                 background-repeat: no-repeat;
                 background-size: var(--bg-pn-size, cover);
                 pointer-events: none;
                 opacity: var(--bg-pn-opacity, 0.1);
                 transition: 1s;
-                mix-blend-mode: var(${ThemePatchGenerator.cssMixBlendMode});
+                mix-blend-mode: var(--bg-pn-blend, var(${ThemePatchGenerator.cssMixBlendMode}));
                 background-image: var(${this.cssvariable});
             }
         `;
@@ -63,7 +72,9 @@ export class WorkspaceAwarePanelPatchGenerator extends PanelPatchGenerator {
         return buildSectionLoaderScript({
             sectionName: 'panel',
             cssVarImg: this.cssvariable,
-            cssVarPrefix: 'bg-pn'
+            cssVarPrefix: 'bg-pn',
+            afterSelector: '.split-view-view > .part.panel::after',
+            surfaceOpacityVar: '--bg-surface-panel-opacity'
         });
     }
 }

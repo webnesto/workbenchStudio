@@ -23,8 +23,19 @@ export function buildSectionLoaderScript(opts: {
      * Must be unique per section.
      */
     cssVarPrefix: string;
+    /**
+     * CSS selector for the section's ::after pseudo-element. Used to scope
+     * per-image style overrides so they apply only to this section.
+     */
+    afterSelector: string;
+    /**
+     * CSS variable for this section's surface (theme-color) opacity, e.g.
+     * '--bg-surface-sidebar-opacity'. The loader sets it from cfg.surfaceOpacity
+     * (resolved by Studio.ts smart defaults).
+     */
+    surfaceOpacityVar: string;
 }): string {
-    const { sectionName, cssVarImg, cssVarPrefix } = opts;
+    const { sectionName, cssVarImg, cssVarPrefix, afterSelector, surfaceOpacityVar } = opts;
     const stateUrl = 'vscode-file://vscode-app' + STATE_CSS_PATH;
 
     return `
@@ -35,7 +46,12 @@ try {
     const CSS_VAR_OPACITY = ${JSON.stringify(`--${cssVarPrefix}-opacity`)};
     const CSS_VAR_SIZE = ${JSON.stringify(`--${cssVarPrefix}-size`)};
     const CSS_VAR_POSITION = ${JSON.stringify(`--${cssVarPrefix}-position`)};
+    const CSS_VAR_Z_INDEX = ${JSON.stringify(`--${cssVarPrefix}-z-index`)};
+    const CSS_VAR_BLEND = ${JSON.stringify(`--${cssVarPrefix}-blend`)};
+    const CSS_VAR_SURFACE_OPACITY = ${JSON.stringify(surfaceOpacityVar)};
     const STATE_LINK_ID = ${JSON.stringify(`background-${sectionName}-state-link`)};
+    const STYLE_TAG_ID = ${JSON.stringify(`background-${sectionName}-per-image-style`)};
+    const AFTER_SELECTOR = ${JSON.stringify(afterSelector)};
 
     let rotationTimer = null;
     let curIndex = -1;
@@ -63,13 +79,27 @@ try {
             rotationTimer = null;
         }
 
+        let tag = document.getElementById(STYLE_TAG_ID);
+        if (!tag) {
+            tag = document.createElement('style');
+            tag.id = STYLE_TAG_ID;
+            document.head.appendChild(tag);
+        }
+
         if (!cfg) {
             document.body.style.setProperty(CSS_VAR_IMG, 'none');
+            document.body.style.removeProperty(CSS_VAR_SURFACE_OPACITY);
+            tag.textContent = '';
             return;
         }
 
         const images = cfg.images || [];
-        const opacity = cfg.opacity != null ? cfg.opacity : 0.1;
+        const perImageStyles = cfg.styles || [];
+        const sectionUseFront = cfg.useFront !== false; // default true
+        // When useFront:false the image sits behind the pane's surface;
+        // raise default opacity to 1 so it's visible as a wallpaper-style
+        // layer rather than a faint overlay. User's explicit opacity wins.
+        const opacity = cfg.opacity != null ? cfg.opacity : (sectionUseFront ? 0.1 : 1);
         const size = cfg.size || 'cover';
         const position = cfg.position || 'center';
         const random = !!cfg.random;
@@ -78,21 +108,77 @@ try {
         document.body.style.setProperty(CSS_VAR_OPACITY, String(opacity));
         document.body.style.setProperty(CSS_VAR_SIZE, size);
         document.body.style.setProperty(CSS_VAR_POSITION, position);
+        document.body.style.setProperty(CSS_VAR_Z_INDEX, sectionUseFront ? '99' : '-1');
+        // useFront:false also drops the blend so the image renders as a clean
+        // wallpaper (no screen-blend distortion against the surface beneath).
+        if (sectionUseFront) {
+            document.body.style.removeProperty(CSS_VAR_BLEND);
+        } else {
+            document.body.style.setProperty(CSS_VAR_BLEND, 'normal');
+        }
+        if (typeof cfg.surfaceOpacity === 'number') {
+            document.body.style.setProperty(CSS_VAR_SURFACE_OPACITY, String(cfg.surfaceOpacity));
+        } else {
+            document.body.style.removeProperty(CSS_VAR_SURFACE_OPACITY);
+        }
+
+        function renderStyle(idx) {
+            const overrides = perImageStyles[idx] || {};
+            const rules = Object.entries(overrides)
+                .filter(function (e) {
+                    // Always strip pointer-events (clicks must pass through)
+                    // and z-index (footgun with no useful access surface).
+                    return e[0] !== 'pointer-events' && e[0] !== 'z-index';
+                })
+                .map(function (e) { return e[0] + ': ' + e[1] + ' !important;'; })
+                .join(' ');
+            tag.textContent = rules ? AFTER_SELECTOR + ' { ' + rules + ' }' : '';
+        }
 
         if (!images.length) {
             document.body.style.setProperty(CSS_VAR_IMG, 'none');
+            renderStyle(0);
             return;
         }
 
         curIndex = -1;
 
         function getNext() {
-            if (random) return images[Math.floor(Math.random() * images.length)];
-            curIndex = (curIndex + 1) % images.length;
+            if (random) {
+                curIndex = Math.floor(Math.random() * images.length);
+            } else {
+                curIndex = (curIndex + 1) % images.length;
+            }
             return images[curIndex];
         }
         function setNext() {
-            document.body.style.setProperty(CSS_VAR_IMG, 'url(' + getNext() + ')');
+            const url = getNext();
+            document.body.style.setProperty(CSS_VAR_IMG, 'url(' + url + ')');
+            renderStyle(curIndex);
+            // Per-image useFront override — applies just to this tick.
+            const perImage = perImageStyles[curIndex] || {};
+            let imgUseFront = sectionUseFront;
+            if ('useFront' in perImage) {
+                const v = perImage.useFront;
+                imgUseFront = !(v === false || v === 'false');
+            }
+            document.body.style.setProperty(CSS_VAR_Z_INDEX, imgUseFront ? '99' : '-1');
+            if (imgUseFront) {
+                document.body.style.removeProperty(CSS_VAR_BLEND);
+            } else {
+                document.body.style.setProperty(CSS_VAR_BLEND, 'normal');
+            }
+            // Per-image opacity override falls back to section default.
+            const imgOpacity = ('opacity' in perImage) ? perImage.opacity : opacity;
+            document.body.style.setProperty(CSS_VAR_OPACITY, String(imgOpacity));
+            try {
+                console.log('[workbench-studio] ' + SECTION + ' tick', {
+                    index: curIndex,
+                    url: url,
+                    useFront: imgUseFront,
+                    style: perImage
+                });
+            } catch (e) {}
         }
 
         setNext();

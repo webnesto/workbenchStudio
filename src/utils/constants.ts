@@ -14,6 +14,15 @@ export const BACKGROUNDS_KEY = 'backgrounds';
 /** Subkey under CONFIG_NAMESPACE for the typography feature module. */
 export const TYPOGRAPHY_KEY = 'typography';
 
+/** Subkey under CONFIG_NAMESPACE for the surface-opacity (theme transparency) feature. */
+export const SURFACE_OPACITY_KEY = 'surfaceOpacity';
+
+/** Subkey under CONFIG_NAMESPACE for the raw CSS injection feature. */
+export const CUSTOM_CSS_KEY = 'css';
+
+/** Subkey under CONFIG_NAMESPACE for the file-path-based CSS injection feature. */
+export const CUSTOM_CSS_FILES_KEY = 'cssFiles';
+
 /** 版本标识 */
 export const BACKGROUND_VER = 'workbenchStudio.ver';
 

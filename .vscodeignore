@@ -1,7 +1,10 @@
 .github/**
 .vscode/**
 .vscode-test/**
+.husky/**
+.claude/**
 src/**
+build/**
 .gitignore
 .yarnrc
 **/tsconfig.json
@@ -9,8 +12,13 @@ src/**
 **/*.map
 **/*.ts
 **/.vscode-test.*
-.husky/**
 *.touch
 *.cache
 .node-version
 .comate
+
+# Local design / tooling artifacts
+*.code-workspace
+*.eno-project
+logo.af
+logo.af~lock~
