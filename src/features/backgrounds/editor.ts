@@ -208,6 +208,15 @@ export class WorkspaceAwareEditorPatchGenerator extends EditorPatchGenerator {
                     transparent
                 ) !important;
             }
+
+            .monaco-workbench .part.editor > .content .editor-group-container.empty.active,
+            .monaco-workbench .part.editor > .content .editor-group-container.empty.dragged-over {
+                opacity: var(--bg-surface-editor-opacity, 1) !important;
+            }
+
+            .monaco-workbench .part.editor > .content .editor-group-container.empty {
+                opacity: var(--bg-surface-editor-opacity, 1) !important;
+            }
         `;
     }
 
