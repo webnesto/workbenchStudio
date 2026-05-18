@@ -36,7 +36,10 @@ export const vsHelp = {
                 return Promise.resolve();
             }
             // 关闭前置动作
-            await options.beforeReload?.();
+            const canReload = await options.beforeReload?.();
+            if (canReload === false) {
+                return Promise.resolve();
+            }
         }
         return vscode.commands.executeCommand('workbench.action.reloadWindow');
     },

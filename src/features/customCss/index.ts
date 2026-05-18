@@ -4,9 +4,11 @@ import { STATE_CSS_PATH } from '../../utils/constants';
 /**
  * Workspace-aware raw CSS injection.
  *
- * Emits a loader that polls `runtime-state.css` (via <link> injection) every
- * ~1.5s, reads `workspaces[key].css` for the current workspace, and writes
- * its value into a single managed `<style>` tag in the document head.
+ * Emits a loader that reads `runtime-state.css` once at workbench boot (via
+ * <link> injection), pulls `workspaces[key].css` for the current workspace,
+ * and writes its value into a single managed `<style>` tag in the document
+ * head. Changes require Apply-and-Reload to take effect — see
+ * docs/dangers.md#why-settings-changes-require-apply-and-reload.
  *
  * The user-facing setting `workbenchStudio.css` accepts either a string or
  * an array of strings; Studio.ts joins arrays with `\n` before writing to
@@ -104,7 +106,6 @@ try {
     async function init() {
         myWorkspaceKey = await detectWorkspaceKey();
         readAndApply();
-        setInterval(readAndApply, 1500);
     }
 
     if (document.body) {

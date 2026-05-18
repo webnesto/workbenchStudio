@@ -247,6 +247,11 @@
               "default": false,
               "markdownDescription": "%extension.workbenchStudio.backgrounds.fullscreen.random%"
             },
+            "useFront": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "%extension.workbenchStudio.backgrounds.fullscreen.useFront%"
+            },
             "blendMode": {
               "type": "string",
               "default": "",

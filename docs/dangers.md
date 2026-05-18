@@ -17,22 +17,45 @@ If you set `surfaceOpacity.editor: 0` AND don't have a fullscreen wallpaper AND 
 
 **Recovery**: set `surfaceOpacity.editor: 1` or remove the key.
 
-## Why fullscreen has no `useFront`
+## Fullscreen `useFront: false`
 
-Other sections (editor, sidebar, panel, auxiliarybar) support `useFront: false` because each section's container is a known opaque layer that the extension can strip transparently. Fullscreen would mean "image behind the entire workbench," which requires stripping:
+Fullscreen supports `useFront: false` as a power-user knob. It moves the fullscreen `::after` pseudo to `z-index: -1` (behind the workbench shell). **On its own this hides the image** — VSCode's panes are opaque and they sit in front of the body. To make the image visible, you must transparentify the surfaces above it. Two practical paths:
 
-- `body` and `.monaco-workbench` (top-level surfaces)
-- All `.part` containers (titlebar, statusbar, activitybar, editor, sidebar, panel, auxiliarybar)
-- Every inner `.part > .content` div with its own background
-- Pane headers, tab bars, action bars, group containers, grid containers
-- Theme CSS variables consumed by list rows, tree nodes, hover/selection highlights
-- Webview iframe contents (Claude Code chat, terminal, Copilot Chat, etc.) — cross-origin, *can't be reached*
+**Path A — `workbench.colorCustomizations` (recommended, broadest reach):**
 
-Every strip we add risks making text unreadable on a busy wallpaper because VSCode's theme colors are calibrated for solid surfaces. Hover/selection highlights are designed to overlay an opaque row; on a busy image they disappear or look wrong. And no matter how aggressive the strip, webview-based panels stay opaque — they sit in cross-origin iframes that the workbench patch can't pierce.
+```jsonc
+"workbench.colorCustomizations": {
+    "editor.background":       "#0000",
+    "sideBar.background":      "#0000",
+    "panel.background":        "#0000",
+    "auxiliaryBar.background": "#0000",
+    "activityBar.background":  "#0000",
+    "titleBar.activeBackground": "#0000"
+}
+```
 
-So fullscreen runs as a *front-layer overlay only* (`useFront: true`, image painted at `z-index: 1000` with low opacity + screen blend). Use the section-level `surfaceOpacity` knobs and per-section background images instead.
+This zeroes the *source* theme tokens. Every CSS rule in the workbench (and inside webviews that respect those tokens) becomes transparent. Doesn't reach list-row backgrounds (`list.background`), tab strips (`editorGroupHeader.tabsBackground`), or hardcoded webview internals — add those keys individually as needed. See the [VSCode theme color reference](https://code.visualstudio.com/api/references/theme-color) for the full list.
 
-If you want a desktop-wallpaper effect, macOS/Windows already does it — set your OS wallpaper and run VSCode with window translucency in the OS preferences. That sits below VSCode without making us responsible for theme contrast trade-offs.
+**Path B — `workbenchStudio.surfaceOpacity.*` (our knob, ~partial coverage):**
+
+```jsonc
+"workbenchStudio.surfaceOpacity": {
+    "editor": 0,
+    "sidebar": 0,
+    "panel": 0,
+    "auxiliarybar": 0
+}
+```
+
+This blends only the four section shells via `color-mix`. Doesn't touch list rows, tab strips, activity bar, status bar, or webviews. Fades smoothly (good for animation) where Path A is a hard set.
+
+**What neither path solves:**
+
+- **Terminal canvas** — xterm.js paints pixels into a canvas. CSS overrides on the canvas don't repaint already-rendered text. Set `terminal.background: "#0000"` via Path A and *new* output will be transparent, but the canvas is still an opaque-pixel grid.
+- **Hardcoded webview backgrounds** — if Claude Code chat or Copilot Chat hardcoded `background: white` instead of consuming a theme token, that's unreachable. Iframe wall.
+- **Theme color calibration** — VSCode's hover/selection highlights are designed to overlay solid surfaces. On a busy image they may disappear or look wrong. Not a bug — a design choice you're now responsible for.
+
+If you want a clean desktop-wallpaper effect with zero contrast surprises, set your OS wallpaper and run VSCode with window translucency in the OS preferences. That sits below VSCode without making this extension responsible for theme contrast trade-offs.
 
 ## VSCode auto-update reverts the patch
 
@@ -136,11 +159,32 @@ For Claude Code specifically: `chat.editor.fontFamily` is a VSCode setting (undo
 
 `workbenchStudio.css` is raw passthrough — bad CSS can hide the Command Palette, intercept clicks, or make UI unreadable. Recovery without using the locked window:
 
-1. **Open user `settings.json` from another VSCode window** — empty out `workbenchStudio.css` and save. Workspace-aware update applies within ~1.5s.
-2. **Edit `settings.json` from a terminal** — `code ~/Library/Application\ Support/Code/User/settings.json` (macOS). Edit, save, wait for the in-window loader to re-poll.
+1. **Open user `settings.json` from another VSCode window** — empty out `workbenchStudio.css` and save. The locked window gets an "Apply and Reload" toast — click it.
+2. **Edit `settings.json` from a terminal** — `code ~/Library/Application\ Support/Code/User/settings.json` (macOS). Edit, save. The locked window gets an "Apply and Reload" toast.
 3. **Disable the extension entirely** — `code --disable-extension eno.workbench-studio` from a terminal restarts VSCode without the extension active.
 
 See [Custom CSS → Recovery](css.md#recovery-if-you-lock-yourself-out) for the full list.
+
+## Why settings changes require Apply-and-Reload
+
+Through v0.1.0 the workspace-aware sections updated live: settings.json save → ~1.5s → every open window reflected the change without a reload. That mechanism has been removed. Now every `workbenchStudio.*` change triggers an "Apply and Reload" toast in every open window, matching how typography always worked.
+
+**The reason it was removed**: live update was driven by injected `setInterval` polling loops in the patched workbench.js — one per workspace-aware feature (editor, sidebar, panel, auxiliarybar, fullscreen, custom CSS). **Six pollers per window**, each ticking every 1.5 seconds. Each tick:
+
+1. Created a fresh `<link rel="stylesheet">` with a cache-busting `?t=Date.now()` (forced disk re-read of `runtime-state.css`)
+2. Appended it to `<head>` (CSSOM invalidation across the workbench)
+3. Called `getComputedStyle()` on `:root` to read the encoded state (forced a synchronous style recalc against the full DOM)
+4. Removed the previous link (another CSSOM invalidation)
+
+For a single window with a small DOM this was tolerable. With several windows open on a Retina display, especially with `useFront: false` + transparent surfaces forcing the compositor to re-render layers, it could peg multiple CPU cores indefinitely. Cost grew with workbench complexity (DOM size, number of windows, display DPR) — not with how often you actually changed settings — so a config that worked fine on one machine could pin another to the redline.
+
+The Apply-and-Reload pattern is cheaper in every dimension: **zero baseline CPU**, immediate confirmation that the change took, and a single code path that matches how typography has always worked. Workspace-awareness is preserved — `runtime-state.json` is still written per workspace on every settings change; each window resolves its own slice once at workbench boot.
+
+**Practical notes**:
+
+- Settings tweaks across many windows trigger a toast in each one. Dismiss them and reload as you visit each window — they don't queue up.
+- Editing an external `.css` file from `workbenchStudio.cssFiles` currently rewrites the state file but does **not** trigger a reload prompt. Reload the window manually after editing the file.
+- The state file lives at `~/.vscode/extensions/eno.workbench-studio-*/runtime-state.json`. Useful for confirming the host wrote what you expected before reloading.
 
 ## Recovery: nuclear option
 

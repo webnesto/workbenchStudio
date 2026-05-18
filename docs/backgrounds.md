@@ -1,6 +1,6 @@
 # Backgrounds
 
-Workspace-aware background images for 5 workbench sections. Each section has its own settings block under `workbenchStudio.backgrounds.<section>`. Changes apply live (~1.5s after settings.json saves) — no reload required.
+Workspace-aware background images for 5 workbench sections. Each section has its own settings block under `workbenchStudio.backgrounds.<section>`. Settings changes require Apply-and-Reload — VSCode will prompt. See [Why settings changes require Apply-and-Reload](dangers.md#why-settings-changes-require-apply-and-reload) for the rationale.
 
 ## Sections
 
@@ -37,7 +37,7 @@ Workspace-aware background images for 5 workbench sections. Each section has its
 |------------------|--------|---------|-----------------------------------------------------------------------------------------|
 | `minimapOpacity` | number | `0.8`   | Opacity of the editor minimap (scroll preview). `1` = fully opaque; `0` = hidden.       |
 
-**Why fullscreen has no `useFront`.** "Image behind the workbench" requires stripping opaque theme surfaces all the way down to the body. VSCode renders many opaque layers (chrome, panes, lists, tabs, headers) plus webview iframes that the workbench patch can't reach. Stripping just enough to be useful without breaking readability is impossible in practice. See [Dangers](dangers.md#why-fullscreen-has-no-usefront).
+**Fullscreen `useFront`.** Supported, but with caveats — VSCode renders many opaque layers above the body, so setting `useFront: false` alone makes the image invisible. To actually see the image behind the workbench you must transparentify the surfaces above it via `workbench.colorCustomizations` and/or `workbenchStudio.surfaceOpacity.*`. See [Fullscreen useFront: false](dangers.md#fullscreen-usefront-false) for full guidance.
 
 ## Image sources
 
@@ -79,7 +79,7 @@ Each entry in `images[]` is either a string (URL / path / folder) or an object. 
 
 ## `useFront` per section
 
-Supported on editor, sidebar, panel, auxiliarybar. **Not supported on fullscreen** — see [Why fullscreen has no `useFront`](dangers.md#why-fullscreen-has-no-usefront).
+Supported on editor, sidebar, panel, auxiliarybar. **Also supported on fullscreen** with caveats — see [Fullscreen useFront: false](dangers.md#fullscreen-usefront-false).
 
 `useFront: true` (default) — image painted as an overlay (`::after`, high z-index, low opacity, theme-driven blend mode). Visible *through* the section's content because of the low opacity + screen blend.
 
@@ -120,7 +120,7 @@ Empty string (or unset) = theme default.
 }
 ```
 
-Live-updates with the rest of the section config — no Apply-and-Reload.
+Applies on Apply-and-Reload along with the rest of the section config.
 
 ## Workspace awareness
 
@@ -130,7 +130,7 @@ Background settings resolve per-workspace per-window. Three windows on three dif
 - **Single-folder workspace** — `.vscode/settings.json` overrides user.
 - **Multi-root workspace** — the `.code-workspace` file's `"settings": {}` block. Folder-level `.vscode/settings.json` is silently ignored by VSCode for window-scoped settings in multi-root workspaces. (Not our behavior — that's VSCode.)
 
-The extension polls a state file in its install directory every ~1.5s; on settings change, the loader re-renders without a reload.
+The extension writes a state file in its install directory on every settings change; each workbench window reads its own workspace's slice once at boot. To pick up a settings change, that window must reload (the extension prompts with "Apply and Reload"). See [Why settings changes require Apply-and-Reload](dangers.md#why-settings-changes-require-apply-and-reload).
 
 ## Recipes
 
@@ -161,6 +161,6 @@ The extension polls a state file in its install directory every ~1.5s; on settin
 
 Each entry carries its own overrides; no need to keep a separate `styles[]` array index-aligned.
 
-## Live update vs Apply-and-Reload
+## Apply-and-Reload
 
-Background changes are workspace-aware and live (~1.5s). The only exception: enabling/disabling the patcher (`workbenchStudio.enabled`) and typography settings require Apply-and-Reload — VSCode will prompt.
+All `workbenchStudio.*` changes require Apply-and-Reload — VSCode will prompt in every open window when settings change. Each window reloads independently. See [Why settings changes require Apply-and-Reload](dangers.md#why-settings-changes-require-apply-and-reload) for the history.

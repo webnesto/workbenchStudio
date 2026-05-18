@@ -34,7 +34,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(
         vscode.commands.registerCommand('extension.workbenchStudio.install', async () => {
             await studio.config.update('enabled', true, true);
-            await studio.applyPatch();
+            const ok = await studio.applyPatch();
+            if (!ok) {
+                return;
+            }
             await vsHelp.reload();
         })
     );
@@ -42,7 +45,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(
         vscode.commands.registerCommand('extension.workbenchStudio.disable', async () => {
             await studio.config.update('enabled', false, true);
-            await studio.uninstall();
+            const ok = await studio.uninstall();
+            if (!ok) {
+                return;
+            }
             await vsHelp.reload();
         })
     );

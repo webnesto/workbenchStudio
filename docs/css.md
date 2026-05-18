@@ -5,7 +5,7 @@ Two complementary settings for raw CSS injection into the workbench:
 - **`workbenchStudio.css`** — inline CSS as a string or array of strings.
 - **`workbenchStudio.cssFiles`** — path(s) to `.css` files on disk.
 
-Both contribute to the final injected CSS (their contents are concatenated, file content last). Workspace-aware: settings changes apply in ~1.5s; saving an external `.css` file applies the same way via `fs.watch`.
+Both contribute to the final injected CSS (their contents are concatenated, file content last). Workspace-aware: changes require Apply-and-Reload — VSCode will prompt on `workbenchStudio.css` edits. Saving an external `.css` file rewrites the runtime state file silently but **does not currently prompt for reload**; reload manually for those changes to apply. See [Why settings changes require Apply-and-Reload](dangers.md#why-settings-changes-require-apply-and-reload).
 
 Power-user escape hatch for when the typed feature modules (backgrounds, typography, surfaceOpacity) don't cover what you need.
 
@@ -50,7 +50,7 @@ Accepted path forms:
 - Absolute (`/usr/...`, `C:\...`)
 - Relative — resolved against the **first workspace folder**
 
-Missing or unreadable files contribute the empty string (no surfaced error — they may be created later). `fs.watch` is registered for each path, so saving the file triggers a live re-read.
+Missing or unreadable files contribute the empty string (no surfaced error — they may be created later). `fs.watch` is registered for each path; on save the extension rewrites its runtime state file, but the in-window loader only reads it at workbench boot — reload the window to pick up the change.
 
 The value is applied verbatim into a managed `<style>` tag in the document head. No validation, no sanitization, no selector rewriting — what you write is what runs.
 
@@ -83,8 +83,8 @@ Order of CSS application in the workbench:
 
 CSS that hides the Command Palette, disables clicks, or makes settings unreadable can leave you unable to fix it from the same window. Recovery paths:
 
-1. **Open `settings.json` from another VSCode window** — workspaces with workbench-studio settings stored in user-level `settings.json` are editable from any window. Empty out `workbenchStudio.css` and save.
-2. **Open settings.json from the terminal** — `code ~/Library/Application\ Support/Code/User/settings.json` (macOS) — edit and save. Workspace-aware update kicks in within ~1.5s.
+1. **Open `settings.json` from another VSCode window** — workspaces with workbench-studio settings stored in user-level `settings.json` are editable from any window. Empty out `workbenchStudio.css` and save. The locked window will get an "Apply and Reload" toast — click it to recover.
+2. **Open settings.json from the terminal** — `code ~/Library/Application\ Support/Code/User/settings.json` (macOS) — edit and save. The locked window will get an "Apply and Reload" toast.
 3. **Disable the extension** — Command Palette → `Workbench Studio: Disable Workbench Studio` if the palette is still reachable. Or use `code --disable-extension eno.workbench-studio` from a terminal.
 4. **Nuclear option** — see [Dangers → Recovery: nuclear option](dangers.md#recovery-nuclear-option).
 

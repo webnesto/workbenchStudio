@@ -28,7 +28,7 @@ This is what makes images visible *through* the content at low opacity in dark t
 3. `useFront: false` (editor / sidebar / panel / auxiliarybar): the loader forces `mix-blend-mode: normal` so the behind-content image renders cleanly without theme-blend distortion.
 4. Theme default above.
 
-All four paths live-update (~1.5s) — no Apply-and-Reload. See [Blend mode](backgrounds.md#blend-mode) for examples.
+All four paths apply on Apply-and-Reload. See [Blend mode](backgrounds.md#blend-mode) for examples.
 
 ## Always-stripped CSS keys
 
@@ -67,7 +67,7 @@ For each image in `editor.images`, the loader emits a CSS rule scoped to a `:nth
 
 Each section gets a `::after` pseudo on its container with hardcoded `position`, z-index, `pointer-events: none`, `transition`, `mix-blend-mode`. Plus a section-background `color-mix` rule using `--bg-surface-<section>-opacity`.
 
-When `useFront: false` (editor / sidebar / panel / auxiliarybar): the loader flips z-index to `-1`, defaults `opacity` to `1`, and disables the blend. Not supported on fullscreen — see [Dangers](dangers.md#why-fullscreen-has-no-usefront).
+When `useFront: false` (editor / sidebar / panel / auxiliarybar): the loader flips z-index to `-1`, defaults `opacity` to `1`, and disables the blend. Fullscreen also supports `useFront: false`, but with caveats — VSCode's panes stay opaque, so you must transparentify them via `workbench.colorCustomizations` or `workbenchStudio.surfaceOpacity.*` to see the image. See [Fullscreen useFront: false](dangers.md#fullscreen-usefront-false).
 
 **Override**: per-image objects with `!important` rules override the scaffold. Section-level `style` (fullscreen only) does the same.
 
@@ -100,7 +100,7 @@ Resolved in [src/core/Studio.ts](../src/core/Studio.ts) `resolveSurfaceOpacities
 | Editor `.minimap` opacity      | Yes (knob)            | `backgrounds.editor.minimapOpacity`.                             |
 | Editor surface opacity         | Yes (knob)            | `surfaceOpacity.editor`.                                         |
 | Pane surface opacity           | Yes (knob)            | `surfaceOpacity.{sidebar,panel,auxiliarybar}`.                   |
-| Per-section `useFront`         | Yes (not fullscreen)  | `backgrounds.<section>.useFront`.                                |
+| Per-section `useFront`         | Yes (all sections)    | `backgrounds.<section>.useFront`. Fullscreen has caveats.        |
 | Per-image `useFront`           | Yes (not fullscreen)  | Inside `images[]` object: `"useFront": true` or `false`.         |
 | Per-section image rotation     | Yes                   | `interval` + `random`.                                           |
 | Checksums patch                | All-or-nothing        | `workbenchStudio.enabled`.                                       |

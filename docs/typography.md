@@ -109,9 +109,9 @@ Both targets share one rule — if you want them styled differently you can spli
 
 ## Why this isn't workspace-aware (yet)
 
-Typography is currently baked into the workbench patch at apply time — same channel as the legacy upstream rendering. Switching to live, workspace-aware updates means moving to the same runtime-state + `<link>` injection pattern that backgrounds use. The mechanism is solved (see [src/features/backgrounds/section-loader.ts](../src/features/backgrounds/section-loader.ts)); the typography module just hasn't been ported.
+Typography is baked into the workbench patch at apply time — same channel as the legacy upstream rendering. Backgrounds are workspace-aware via the runtime-state + `<link>` injection pattern ([src/features/backgrounds/section-loader.ts](../src/features/backgrounds/section-loader.ts)) — read once at boot rather than baked. Typography could be ported the same way but hasn't been; for a personal fork the win isn't worth the work.
 
-Roadmap: copy the section-loader pattern into a typography loader. Not high priority for a personal fork.
+In either case, settings changes require Apply-and-Reload — see [Why settings changes require Apply-and-Reload](dangers.md#why-settings-changes-require-apply-and-reload).
 
 ## Webview limitation
 

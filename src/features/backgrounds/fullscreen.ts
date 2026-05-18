@@ -32,6 +32,15 @@ export class FullscreenPatchGeneratorConfig {
      * `workbenchStudio.surfaceOpacity.<section>`.
      */
     surfaceOpacity?: number;
+    /**
+     * When false, the fullscreen image's ::after pseudo drops to z-index -1
+     * (behind the workbench shell). On its own this hides the image — the
+     * workbench panes are opaque. To make it visible, the user must also
+     * transparentify the relevant surfaces via `workbench.colorCustomizations`
+     * (sets the source theme tokens) or via `workbenchStudio.surfaceOpacity.*`
+     * (blends per section). Documented as a power-user knob.
+     */
+    useFront?: boolean;
 }
 
 /**
@@ -154,7 +163,7 @@ export class WorkspaceAwareFullscreenPatchGenerator extends FullscreenPatchGener
                 content: '';
                 display: block;
                 position: absolute;
-                z-index: 1000;
+                z-index: var(--bg-fs-z-index, 1000);
                 inset: 0;
                 pointer-events: none;
                 background-size: var(--bg-fs-size, cover);
@@ -212,6 +221,7 @@ try {
         if (!cfg) {
             document.body.style.setProperty(CSS_VAR_IMG, 'none');
             document.body.style.removeProperty('--bg-fs-blend');
+            document.body.style.removeProperty('--bg-fs-z-index');
             return;
         }
 
@@ -223,12 +233,16 @@ try {
         const random = !!cfg.random;
         const interval = cfg.interval || 0;
         const style = cfg.style || {};
+        const useFront = cfg.useFront !== false;
 
         document.body.style.setProperty('--bg-fs-opacity', String(opacity));
         document.body.style.setProperty('--bg-fs-size', size);
         document.body.style.setProperty('--bg-fs-position', position);
+        document.body.style.setProperty('--bg-fs-z-index', useFront ? '1000' : '-1');
         if (typeof cfg.blendMode === 'string' && cfg.blendMode.length) {
             document.body.style.setProperty('--bg-fs-blend', cfg.blendMode);
+        } else if (!useFront) {
+            document.body.style.setProperty('--bg-fs-blend', 'normal');
         } else {
             document.body.style.removeProperty('--bg-fs-blend');
         }
@@ -348,7 +362,6 @@ try {
     async function init() {
         myWorkspaceKey = await detectWorkspaceKey();
         readAndApply();
-        setInterval(readAndApply, 1500);
     }
 
     if (document.body) {

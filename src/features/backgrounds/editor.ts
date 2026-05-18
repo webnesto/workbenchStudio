@@ -422,7 +422,6 @@ try {
     async function init() {
         myWorkspaceKey = await detectWorkspaceKey();
         readAndApply();
-        setInterval(readAndApply, 1500);
     }
 
     if (document.body) {

@@ -4,7 +4,7 @@ Welcome to `Workbench Studio@${VERSION}` — a fork of [shalldie/vscode-backgrou
 
 ## What's in this version
 
-- **Workspace-aware backgrounds** for 5 sections (editor, fullscreen, sidebar, panel, auxiliary bar). Per-image overrides, live update.
+- **Workspace-aware backgrounds** for 5 sections (editor, fullscreen, sidebar, panel, auxiliary bar). Per-image overrides.
 - **Typography** overrides for sidebar tree views.
 - **Surface opacity** per section (editor / sidebar / panel / auxiliarybar) — continuous 0–1 blending of theme color with transparent so per-section background images can show through.
 
@@ -32,7 +32,7 @@ Welcome to `Workbench Studio@${VERSION}` — a fork of [shalldie/vscode-backgrou
 }
 ```
 
-Background updates apply live (~1.5s after save). Typography and `enabled` need Apply-and-Reload — you'll be prompted.
+All `workbenchStudio.*` settings need Apply-and-Reload — you'll be prompted in every open window when settings change. See [Why settings changes require Apply-and-Reload](dangers.md#why-settings-changes-require-apply-and-reload).
 
 ## More documentation
 

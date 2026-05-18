@@ -79,8 +79,8 @@ export class Studio implements Disposable {
     /**
      * Active fs.watch handles, keyed by resolved absolute file path. Each
      * entry observes a user-provided `workbenchStudio.cssFiles` path; on file
-     * change the handler triggers `writeWorkspaceState` so the runtime loader
-     * picks up the new content within ~1.5s.
+     * change the handler triggers `writeWorkspaceState` so the runtime state
+     * file reflects the new content. Each window picks it up on next reload.
      */
     private cssFileWatchers = new Map<string, fs.FSWatcher>();
 
@@ -233,11 +233,21 @@ export class Studio implements Disposable {
 
     public async applyPatch() {
         if (!this.config.get<boolean>('enabled', true)) {
-            return;
+            return false;
         }
 
         const scriptContent = PatchGenerator.create(this.getPatchConfig());
-        return this.jsFile.applyPatches(scriptContent);
+        const ok = await this.jsFile.applyPatches(scriptContent);
+        if (!ok) {
+            this.showPatchWriteError('apply Workbench Studio');
+        }
+        return ok;
+    }
+
+    private showPatchWriteError(action: string) {
+        vscode.window.showErrorMessage(
+            `Workbench Studio could not ${action}. It needs write access to ${vscodePath.jsPath}. If this VS Code install is not user-writable, retry and approve the admin prompt.`
+        );
     }
 
     /**
@@ -277,8 +287,9 @@ export class Studio implements Disposable {
      * user-home paths is refused by the vscode-file:// protocol handler. But
      * <link> from inside an extension's install dir works — that's our channel.
      *
-     * The patched workbench JS polls every 1.5s, so changes apply without an
-     * Apply-and-Reload cycle.
+     * The patched workbench JS reads this state file once at workbench boot.
+     * Settings changes require Apply-and-Reload to take effect — see
+     * docs/dangers.md#why-settings-changes-require-apply-and-reload.
      */
     public async writeWorkspaceState(): Promise<void> {
         // Serialize across all windows via a filesystem lock. Multiple windows
@@ -374,8 +385,8 @@ export class Studio implements Disposable {
 
     /**
      * Sync the active `fs.watch` set with the resolved list of user CSS files.
-     * Each watch fires `writeWorkspaceState` so the runtime loader picks up
-     * file edits within ~1.5s (matching the settings-change live update).
+     * Each watch fires `writeWorkspaceState` so the runtime state file reflects
+     * the new content. Windows pick it up on next reload.
      */
     private reconcileCssWatchers(resolvedPaths: string[]) {
         const wanted = new Set(resolvedPaths.filter(p => p && p.length));
@@ -654,15 +665,10 @@ export class Studio implements Disposable {
 
                 await this.writeWorkspaceState();
 
-                // Backgrounds are workspace-aware and reload-free.
-                // `enabled` and typography settings re-patch workbench.js,
-                // so prompt for those.
-                const enabledChanged = ex.affectsConfiguration(`${CONFIG_NAMESPACE}.enabled`);
-                const typographyChanged = ex.affectsConfiguration(`${CONFIG_NAMESPACE}.${TYPOGRAPHY_KEY}`);
-                if (!enabledChanged && !typographyChanged) {
-                    return;
-                }
-
+                // All settings now require reload: loaders read the state file
+                // once at workbench init and don't poll for changes. Settings
+                // changes propagate to the state file immediately but each
+                // window needs a reload to pick them up.
                 this.onConfigChange();
             })
         );
@@ -689,7 +695,11 @@ export class Studio implements Disposable {
      */
     public async uninstall(): Promise<boolean> {
         await this.removeLegacyCssPatch();
-        return this.jsFile.restore();
+        const ok = await this.jsFile.restore();
+        if (!ok) {
+            this.showPatchWriteError('remove its workbench patch');
+        }
+        return ok;
     }
 
     /**
