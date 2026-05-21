@@ -72,6 +72,34 @@ grep -c 'vscode-background' "/Applications/Visual Studio Code.app/Contents/Resou
 # 2 = patched, 0 = unpatched
 ```
 
+## Patching a locked-down / managed machine (file permissions)
+
+On a managed or locked-down work machine, VSCode is typically installed by IT and the workbench files are owned by `root:wheel`, read-only to your user:
+
+```text
+-rw-r--r--  1 root  wheel  16943344  workbench.desktop.main.js
+-rw-r--r--  1 root  wheel   1121332  workbench.desktop.main.css
+```
+
+Workbench Studio patches **both** of these files. If your user can't write them, `Workbench Studio: Enable and apply` fails — it can't save the modified workbench. (On a personal Mac these are usually already user-writable, so you never hit this.)
+
+**Fix**: make both files writable by your user before applying. From the workbench dir (`/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/workbench/` on macOS):
+
+```bash
+cd "/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/workbench"
+
+# Option A — take ownership (preferred):
+sudo chown "$USER" workbench.desktop.main.js workbench.desktop.main.css
+
+# Option B — keep root ownership, just add a write bit.
+# Note: root:wheel files need group/other write, so this means o+w:
+sudo chmod o+w workbench.desktop.main.js workbench.desktop.main.css
+```
+
+Then re-run `Workbench Studio: Enable and apply` and reload.
+
+**Note**: a VSCode update replaces both files, resetting contents *and* ownership/permissions — so you'll need to repeat this after each update, alongside re-applying the patch (see "VSCode auto-update reverts the patch" above).
+
 ## `code --install-extension --force` doesn't actually replace files
 
 When iterating on the extension during development, `code --install-extension <file> --force` is unreliable for same-version vsixs — it often keeps the cached files in place. The extension manifest registers as installed but the JS on disk is stale.
