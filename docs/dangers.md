@@ -214,6 +214,18 @@ The Apply-and-Reload pattern is cheaper in every dimension: **zero baseline CPU*
 - Editing an external `.css` file from `workbenchStudio.cssFiles` currently rewrites the state file but does **not** trigger a reload prompt. Reload the window manually after editing the file.
 - The state file lives at `~/.vscode/extensions/eno.workbench-studio-*/runtime-state.json`. Useful for confirming the host wrote what you expected before reloading.
 
+### Live preview (opt-in)
+
+For active setup work — where reloading after every tweak is painful — there's a live-preview mode. Toggle it from the Command Palette: **`Workbench Studio: Toggle Live Preview`** (or set `workbenchStudio.livePreview: true` directly). When on, the loaders poll the state file every ~1.5s and apply changes live, exactly like the old always-on behavior.
+
+- **Turning it on** requires one reload to start the pollers (no poller is running to detect the flip). The "Apply and Reload" toast fires for this transition.
+- **Turning it off** is instant and self-healing: each running poller sees the flag flip to `false` on its next tick (within ~1.5s) and clears its own interval. No reload needed; CPU drops immediately.
+- **While on**, ordinary settings changes (backgrounds, surfaceOpacity, css) apply live with no reload prompt. `enabled` and typography still prompt — they're baked into the workbench patch, not the runtime state file.
+
+Leave it **off** for normal use. The polling cost described above is real; live preview is a setup convenience, not a steady-state mode.
+
+**15-minute idle watchdog.** To keep a forgotten session from lagging the machine for hours, the extension auto-disables live preview after **15 minutes with no settings change**. The timer resets on every `workbenchStudio.*` change, so active tuning never trips it — it only fires once you've stopped (or walked away). On expiry, live preview turns off (pollers self-stop within ~1.5s) and the focused window shows a "Turn back on" notification. The duration is hardcoded by design — a configurable timeout you could set to "10000 hours" or "0 = never" would just reintroduce the footgun.
+
 ## Recovery: nuclear option
 
 If something's badly broken and you want to start from a clean state:

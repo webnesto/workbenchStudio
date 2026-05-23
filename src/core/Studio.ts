@@ -84,6 +84,17 @@ export class Studio implements Disposable {
      */
     private cssFileWatchers = new Map<string, fs.FSWatcher>();
 
+    /**
+     * Idle watchdog for `workbenchStudio.livePreview`. While live preview is on,
+     * the renderer-side loaders poll continuously and burn CPU. To stop a
+     * forgotten session from lagging the machine indefinitely, the host arms a
+     * 15-minute idle timer (reset on every settings change). On expiry it turns
+     * live preview off and notifies — the loaders self-stop within ~1.5s.
+     * Hardcoded duration on purpose: a configurable timeout is itself a footgun.
+     */
+    private livePreviewIdleTimer?: ReturnType<typeof setTimeout>;
+    private static readonly LIVE_PREVIEW_IDLE_MS = 15 * 60 * 1000;
+
     // #endregion
 
     // #region private methods 私有方法
@@ -229,6 +240,50 @@ export class Studio implements Disposable {
             btnReload: l10n.t('Apply and Reload'),
             beforeReload: () => this.applyPatch()
         });
+    }
+
+    /**
+     * Reset the live-preview idle watchdog. Clears any pending timer and, if
+     * live preview is currently on, arms a fresh 15-minute timer. Called on
+     * activation and on every settings change, giving idle semantics: active
+     * tuning keeps resetting it; walking away lets it fire.
+     */
+    private armLivePreviewIdleTimer() {
+        if (this.livePreviewIdleTimer) {
+            clearTimeout(this.livePreviewIdleTimer);
+            this.livePreviewIdleTimer = undefined;
+        }
+        if (!this.config.get<boolean>('livePreview', false)) {
+            return;
+        }
+        this.livePreviewIdleTimer = setTimeout(() => this.onLivePreviewIdle(), Studio.LIVE_PREVIEW_IDLE_MS);
+    }
+
+    /**
+     * Fired 15 minutes after the last settings change while live preview is on.
+     * Turns live preview off (loaders self-stop) and, in the focused window,
+     * offers a one-click re-enable. Non-focused windows turn off silently so a
+     * walk-away session can't keep polling — and so multiple open windows don't
+     * each pop a notification.
+     */
+    private async onLivePreviewIdle() {
+        // Another window (or the user) may have already turned it off.
+        if (!this.config.get<boolean>('livePreview', false)) {
+            return;
+        }
+        await this.config.update('livePreview', false, true);
+        if (!vscode.window.state.focused) {
+            return;
+        }
+        const choice = await vscode.window.showInformationMessage(
+            l10n.t('Workbench Studio live preview was idle for 15 minutes and has been turned off to save CPU.'),
+            { title: l10n.t('Turn back on') }
+        );
+        if (choice) {
+            // Re-enabling needs a reload to restart the pollers; the standard
+            // onConfigChange flow will prompt for it.
+            await this.config.update('livePreview', true, true);
+        }
     }
 
     public async applyPatch() {
@@ -483,6 +538,10 @@ export class Studio implements Disposable {
                 auxiliarybar: { ...auxiliarybarGen.config, surfaceOpacity: surfaceOpacity.auxiliarybar },
                 css: customCss
             };
+            // Top-level live-preview flag. Loaders read this once at boot and,
+            // when true, set up polling so settings changes apply without a
+            // reload. Off by default — polling is the documented CPU hog.
+            state.livePreview = cfg.get<boolean>('livePreview', false);
             // `current` is now used only as a fallback when the renderer-side
             // workspace detection (window.vscode.context.resolveConfiguration)
             // doesn't match any state entry. With Phase 2B in place each window
@@ -665,16 +724,47 @@ export class Studio implements Disposable {
 
                 await this.writeWorkspaceState();
 
-                // All settings now require reload: loaders read the state file
-                // once at workbench init and don't poll for changes. Settings
-                // changes propagate to the state file immediately but each
-                // window needs a reload to pick them up.
+                // Reset the idle watchdog on any settings change (idle
+                // semantics) and clear it if live preview was just turned off.
+                this.armLivePreviewIdleTimer();
+
+                // `enabled` and typography are baked into the workbench patch
+                // (not the runtime-state file), so they always need a re-patch
+                // + reload regardless of live preview.
+                const enabledChanged = ex.affectsConfiguration(`${CONFIG_NAMESPACE}.enabled`);
+                const typographyChanged = ex.affectsConfiguration(`${CONFIG_NAMESPACE}.${TYPOGRAPHY_KEY}`);
+                if (enabledChanged || typographyChanged) {
+                    this.onConfigChange();
+                    return;
+                }
+
+                // Everything else (backgrounds, surfaceOpacity, css, cssFiles)
+                // is driven by the runtime-state file.
+                const livePreview = this.config.get<boolean>('livePreview', false);
+                const livePreviewChanged = ex.affectsConfiguration(`${CONFIG_NAMESPACE}.livePreview`);
+
+                // Live preview on (and this wasn't the toggle): the in-window
+                // poller picks the change up within ~1.5s — no reload needed.
+                if (livePreview && !livePreviewChanged) {
+                    return;
+                }
+                // Turning live preview OFF self-heals: the running poller sees
+                // the flag flip on its next tick and clears its own interval.
+                if (livePreviewChanged && !livePreview) {
+                    return;
+                }
+                // Otherwise: live preview is off, or it was just turned ON (needs
+                // a reload to start the poller). Prompt to Apply-and-Reload.
                 this.onConfigChange();
             })
         );
 
         // Workspace folder changes shift which key the patched JS picks up.
         this.disposables.push(vscode.workspace.onDidChangeWorkspaceFolders(() => this.writeWorkspaceState()));
+
+        // If a window boots with live preview already on (e.g. enabled then
+        // reloaded), start the idle watchdog so it can't run unbounded.
+        this.armLivePreviewIdleTimer();
     }
 
     /**
@@ -715,6 +805,10 @@ export class Studio implements Disposable {
             } catch {}
         }
         this.cssFileWatchers.clear();
+        if (this.livePreviewIdleTimer) {
+            clearTimeout(this.livePreviewIdleTimer);
+            this.livePreviewIdleTimer = undefined;
+        }
     }
 
     // #endregion

@@ -32,6 +32,19 @@ try {
 
     let lastApplied = null;
     let myWorkspaceKey = null;
+    let pollTimer = null;
+
+    // Live-preview poll timer. Started/stopped by readAndApply based on the
+    // state file's top-level livePreview flag. Turning live preview off is
+    // self-healing: the running poller sees the flag flip and clears itself.
+    function managePollTimer(live) {
+        if (live && !pollTimer) {
+            pollTimer = setInterval(readAndApply, 1500);
+        } else if (!live && pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+    }
 
     async function detectWorkspaceKey() {
         try {
@@ -90,6 +103,7 @@ try {
         try {
             const state = await loadStateOnce();
             if (!state) return;
+            managePollTimer(!!state.livePreview);
             const workspaces = state.workspaces || {};
             const key = (myWorkspaceKey && workspaces[myWorkspaceKey])
                 ? myWorkspaceKey

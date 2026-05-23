@@ -63,6 +63,11 @@
         "title": "%extension.workbenchStudio.command.openDocs.title%"
       },
       {
+        "command": "extension.workbenchStudio.toggleLivePreview",
+        "category": "Workbench Studio",
+        "title": "%extension.workbenchStudio.command.toggleLivePreview.title%"
+      },
+      {
         "command": "extension.workbenchStudio.previewPatch",
         "category": "Workbench Studio",
         "title": "[Dev] Preview Patch"
@@ -76,6 +81,11 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "%extension.workbenchStudio.enabled.description%"
+        },
+        "workbenchStudio.livePreview": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "%extension.workbenchStudio.livePreview.description%"
         },
         "workbenchStudio.css": {
           "oneOf": [

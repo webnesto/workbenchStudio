@@ -75,6 +75,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         })
     );
 
+    context.subscriptions.push(
+        vscode.commands.registerCommand('extension.workbenchStudio.toggleLivePreview', async () => {
+            const turningOn = !studio.config.get<boolean>('livePreview', false);
+            // Flipping the setting drives the onDidChangeConfiguration handler:
+            // turning on prompts Apply-and-Reload (pollers start after reload);
+            // turning off self-heals (pollers stop within ~1.5s). The idle
+            // watchdog is armed/cleared there too.
+            await studio.config.update('livePreview', turningOn, true);
+            vscode.window.setStatusBarMessage(
+                turningOn
+                    ? l10n.t('Workbench Studio: live preview on — reload to start')
+                    : l10n.t('Workbench Studio: live preview off'),
+                4000
+            );
+        })
+    );
+
     const statusbar = getStatusbar();
     context.subscriptions.push(
         vscode.commands.registerCommand(statusbar.command as string, async () => {

@@ -1,13 +1,15 @@
 {
     "extension.workbenchStudio.command.info.title": "Welcome to Workbench Studio.",
     "extension.workbenchStudio.command.openDocs.title": "Open Documentation",
+    "extension.workbenchStudio.command.toggleLivePreview.title": "Toggle Live Preview (apply settings without reload)",
     "extension.workbenchStudio.command.install.title": "Enable and apply Workbench Studio.",
     "extension.workbenchStudio.command.disable.title": "Disable Workbench Studio.",
     "extension.workbenchStudio.command.uninstall.title": "Uninstall the extension.",
 
     "extension.workbenchStudio.enabled.description": "Whether to enable the Workbench Studio patcher.",
-    "extension.workbenchStudio.css.description": "Raw CSS injected into the workbench. Power-user escape hatch — bypasses typed feature modules and applies the value verbatim inside a managed `<style>` tag. Accepts a string or an array of strings (joined with newlines). **Workspace-aware** (live update ~1.5s). **Footgun warning**: bad CSS can hide UI or intercept clicks; see [Dangers](https://github.com/webnesto/workbenchStudio/blob/main/docs/dangers.md) for recovery.",
-    "extension.workbenchStudio.cssFiles.description": "Path or array of paths to `.css` files. Their contents are read and concatenated with `workbenchStudio.css` before injection. Paths accept `file://` URIs, `~/...` home-relative, absolute, or workspace-relative forms. File saves trigger a live re-read (~1.5s) via `fs.watch`. Same footgun caveat as `workbenchStudio.css`.",
+    "extension.workbenchStudio.livePreview.description": "Poll for settings changes and apply them live without a reload. Off by default. Useful while actively tuning backgrounds/typography; **leave it off for normal use** — polling drives continuous CPU in every window. Turning it **on** requires one reload to start; turning it **off** stops within ~1.5s without a reload.",
+    "extension.workbenchStudio.css.description": "Raw CSS injected into the workbench. Power-user escape hatch — bypasses typed feature modules and applies the value verbatim inside a managed `<style>` tag. Accepts a string or an array of strings (joined with newlines). **Workspace-aware**; changes require Apply-and-Reload (or enable `workbenchStudio.livePreview`). **Footgun warning**: bad CSS can hide UI or intercept clicks; see [Dangers](https://github.com/webnesto/workbenchStudio/blob/main/docs/dangers.md) for recovery.",
+    "extension.workbenchStudio.cssFiles.description": "Path or array of paths to `.css` files. Their contents are read and concatenated with `workbenchStudio.css` before injection. Paths accept `file://` URIs, `~/...` home-relative, absolute, or workspace-relative forms. Changes require Apply-and-Reload (or enable `workbenchStudio.livePreview`). Same footgun caveat as `workbenchStudio.css`.",
 
     "extension.workbenchStudio.backgrounds.editor.description": "Editor section background config.",
     "extension.workbenchStudio.backgrounds.editor.useFront": "Place the image above or below the code. Can be overridden per-image inside an `images[]` object entry.",

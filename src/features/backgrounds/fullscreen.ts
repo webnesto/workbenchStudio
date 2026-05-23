@@ -194,6 +194,19 @@ try {
     // exposed configuration bridge. Falls back to state.current (last-write-wins)
     // if detection fails — preserves Phase 2A behavior as graceful degradation.
     let myWorkspaceKey = null;
+    let pollTimer = null;
+
+    // Live-preview poll timer. Started/stopped by readAndApply based on the
+    // state file's top-level livePreview flag. Turning live preview off is
+    // self-healing: the running poller sees the flag flip and clears itself.
+    function managePollTimer(live) {
+        if (live && !pollTimer) {
+            pollTimer = setInterval(readAndApply, 1500);
+        } else if (!live && pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+    }
 
     async function detectWorkspaceKey() {
         try {
@@ -287,11 +300,31 @@ try {
             const url = getNext();
             document.body.style.setProperty(CSS_VAR_IMG, 'url(' + url + ')');
             renderStyle(curIndex);
+            // Per-image useFront / opacity overrides — apply just to this tick.
+            const perImage = perImageStyles[curIndex] || {};
+            let imgUseFront = useFront;
+            if ('useFront' in perImage) {
+                const v = perImage.useFront;
+                imgUseFront = !(v === false || v === 'false');
+            }
+            document.body.style.setProperty('--bg-fs-z-index', imgUseFront ? '1000' : '-1');
+            // Section-level blendMode wins; otherwise mirror applyConfig's logic
+            // so per-image useFront flips the blend in lock-step with z-index.
+            if (typeof cfg.blendMode === 'string' && cfg.blendMode.length) {
+                // already set in applyConfig; leave alone
+            } else if (!imgUseFront) {
+                document.body.style.setProperty('--bg-fs-blend', 'normal');
+            } else {
+                document.body.style.removeProperty('--bg-fs-blend');
+            }
+            const imgOpacity = ('opacity' in perImage) ? perImage.opacity : opacity;
+            document.body.style.setProperty('--bg-fs-opacity', String(imgOpacity));
             try {
                 console.log('[workbench-studio] fullscreen tick', {
                     index: curIndex,
                     url: url,
-                    style: perImageStyles[curIndex] || {}
+                    useFront: imgUseFront,
+                    style: perImage
                 });
             } catch (e) {}
         }
@@ -341,6 +374,7 @@ try {
         try {
             const state = await loadStateOnce();
             if (!state) return;
+            managePollTimer(!!state.livePreview);
             const workspaces = state.workspaces || {};
             // Prefer this window's own workspace key (Phase 2B). Fall back to
             // state.current if detection didn't succeed.

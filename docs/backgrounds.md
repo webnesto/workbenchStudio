@@ -164,3 +164,5 @@ Each entry carries its own overrides; no need to keep a separate `styles[]` arra
 ## Apply-and-Reload
 
 All `workbenchStudio.*` changes require Apply-and-Reload — VSCode will prompt in every open window when settings change. Each window reloads independently. See [Why settings changes require Apply-and-Reload](dangers.md#why-settings-changes-require-apply-and-reload) for the history.
+
+For active tuning, enable [`workbenchStudio.livePreview`](dangers.md#live-preview-opt-in) to apply changes live without reloading — turn it off again when you're done (it polls and costs CPU).
