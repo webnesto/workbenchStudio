@@ -5,9 +5,10 @@ import path from 'path';
 import vscode, { Disposable, l10n, Uri } from 'vscode';
 
 import { AuxiliarybarPatchGenerator } from '../features/backgrounds/auxiliarybar';
-import { EditorPatchGenerator } from '../features/backgrounds/editor';
+import { buildEditorImageRules, EditorPatchGenerator, wsAttrHash } from '../features/backgrounds/editor';
 import { FullscreenPatchGenerator } from '../features/backgrounds/fullscreen';
 import { PanelPatchGenerator } from '../features/backgrounds/panel';
+import { buildSectionImageRules, SECTION_META } from '../features/backgrounds/section-loader';
 import { SidebarPatchGenerator } from '../features/backgrounds/sidebar';
 import {
     BACKGROUNDS_KEY,
@@ -556,11 +557,73 @@ export class Studio implements Disposable {
             // because the renderer ignores entries it doesn't match.
             this.pruneStaleStateEntries(state);
 
+            // runtime-state.json is the full source of truth (all sections,
+            // all workspaces, incl. editor image paths + per-image styles).
+            // Node reads/writes it freely — no CSS custom-property cap applies.
             const stateJson = JSON.stringify(state, null, 2);
-            // Base64-encode the JSON so we can embed it in a CSS string without
-            // worrying about quote/backslash escaping.
-            const stateB64 = Buffer.from(stateJson, 'utf-8').toString('base64');
-            const stateCss = `:root { --bg-state-b64: "${stateB64}"; }\n`;
+
+            // STUD4 real-CSS transport. Emit each workspace's section images as
+            // *real*, static CSS rules (uncapped) gated by a workspace hash; the
+            // renderer rotates by flipping a per-section index attribute (editor
+            // tags split elements; the simple sections flip one :root attr). The
+            // b64 transport below then carries only the small per-section KNOBS —
+            // never the bulky path/style arrays that blew past the
+            // custom-property cap (STUD3). Fullscreen + customCss still ride the
+            // blob until their phase migrates.
+            let sectionRulesCss = '';
+            const transport: any = JSON.parse(stateJson);
+            for (const [wsKey, slice] of Object.entries<any>(state.workspaces || {})) {
+                if (!slice) continue;
+                const wsSel = `:root[data-wbs-ws="${wsAttrHash(wsKey)}"]`;
+
+                // Editor — per-split-distinct, element-tagged (see editor.ts).
+                const ed = slice.editor;
+                if (ed && Array.isArray(ed.images) && ed.images.length) {
+                    sectionRulesCss += buildEditorImageRules(ed, wsSel) + '\n';
+                }
+
+                // Single-surface sections (fullscreen + part sections) —
+                // index-attribute rotation.
+                for (const [secName, meta] of Object.entries(SECTION_META)) {
+                    const sc = slice[secName];
+                    if (sc && Array.isArray(sc.images) && sc.images.length) {
+                        sectionRulesCss += buildSectionImageRules(sc, wsSel, meta) + '\n';
+                    }
+                }
+
+                // Strip the bulky path/style arrays from the transport blob,
+                // keeping only the per-section knobs the loaders still read.
+                const tslice = transport.workspaces?.[wsKey];
+                if (tslice) {
+                    if (tslice.editor) {
+                        const e = tslice.editor;
+                        tslice.editor = {
+                            interval: e.interval,
+                            random: e.random,
+                            count: Array.isArray(e.images) ? e.images.length : 0,
+                            minimapOpacity: e.minimapOpacity,
+                            surfaceOpacity: e.surfaceOpacity,
+                            blendMode: e.blendMode
+                        };
+                    }
+                    for (const secName of Object.keys(SECTION_META)) {
+                        const s = tslice[secName];
+                        if (s) {
+                            tslice[secName] = {
+                                interval: s.interval,
+                                random: s.random,
+                                count: Array.isArray(s.images) ? s.images.length : 0,
+                                surfaceOpacity: s.surfaceOpacity
+                            };
+                        }
+                    }
+                }
+            }
+
+            // Base64-encode the (section-slimmed) transport JSON so we can embed
+            // it in a CSS string without worrying about quote/backslash escaping.
+            const stateB64 = Buffer.from(JSON.stringify(transport), 'utf-8').toString('base64');
+            const stateCss = `${sectionRulesCss}:root { --bg-state-b64: "${stateB64}"; }\n`;
 
             // Atomic writes via process-unique tmp filename + rename. The PID
             // suffix prevents tmp-file collisions if anyone manages to enter

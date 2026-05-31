@@ -2,6 +2,104 @@ import { AbsPatchGenerator, css } from '../../core/patches/base';
 import { ThemePatchGenerator } from '../../core/patches/theme';
 import { STATE_CSS_PATH } from '../../utils/constants';
 
+/**
+ * Module-level style serializer for the static per-image rule builder.
+ * Mirrors EditorPatchGenerator.getStyleByOptions: always drop pointer-events
+ * (clicks must pass through) and z-index (no access to other elements' stacks).
+ */
+function serializeStyle(style: Record<string, string>): string {
+    const excludeKeys = ['pointer-events', 'z-index'];
+    return Object.entries(style)
+        .filter(([key]) => !excludeKeys.includes(key))
+        .map(([key, value]) => `${key}: ${value};`)
+        .join('');
+}
+
+/**
+ * Deterministic 32-bit djb2 hash of a workspace key → base36 string. Gates the
+ * per-workspace editor rules (`:root[data-wbs-ws="<hash>"]`). The renderer
+ * loader (getScript) inlines the byte-identical algorithm so both sides agree
+ * on the attribute value — keep them in sync.
+ */
+export function wsAttrHash(key: string): string {
+    let h = 5381;
+    for (let i = 0; i < key.length; i++) {
+        h = ((h << 5) + h + key.charCodeAt(i)) | 0;
+    }
+    return (h >>> 0).toString(36);
+}
+
+/**
+ * STUD4 real-CSS transport. Emit the editor's per-image background rules as
+ * *real* static CSS declarations (not packed into the --bg-state-b64 custom
+ * property, which is what blew past Chromium's per-property cap — STUD3).
+ *
+ * One rule per image, selected by `.split-view-view[data-wbs-ed-img="<m>"]`.
+ * The renderer loader tags each editor split with the index of the image it
+ * should currently show and rotates by re-tagging — so image paths and
+ * per-image styles never flow through a capped property. Per-split-distinct
+ * rotation is preserved (split p shows image (p + offset) % count).
+ *
+ * @param cfg         editor config slice (images, styles, style, useFront)
+ * @param wsSelector  workspace gate, e.g. `:root[data-wbs-ws="abc"]`
+ */
+export function buildEditorImageRules(
+    cfg: {
+        images?: string[];
+        styles?: Array<Record<string, string>>;
+        style?: Record<string, string>;
+        useFront?: boolean;
+    },
+    wsSelector: string
+): string {
+    const images = cfg.images || [];
+    if (!images.length) return '';
+
+    const sectionUseFront = cfg.useFront !== false;
+    const baseStyle = cfg.style || {};
+    const perImageStyles = cfg.styles || [];
+    const blendModeVar = ThemePatchGenerator.cssMixBlendMode;
+
+    const out: string[] = [];
+    for (let m = 0; m < images.length; m++) {
+        const img = images[m];
+        const perImage = perImageStyles[m] || {};
+
+        // Per-image useFront override. base.ts string-coerces values, so accept
+        // both boolean and 'true'/'false' strings.
+        let imgUseFront = sectionUseFront;
+        if ('useFront' in perImage) {
+            const v = (perImage as Record<string, unknown>).useFront;
+            imgUseFront = !(v === false || v === 'false');
+        }
+
+        // Drop useFront from the CSS-prop list — it's a control flag, not CSS.
+        const cleaned: Record<string, string> = {};
+        for (const k in perImage) {
+            if (k !== 'useFront') cleaned[k] = perImage[k];
+        }
+
+        const styleStr = serializeStyle({
+            ...baseStyle,
+            ...cleaned,
+            'background-image': `url(${img})`
+        });
+        const frontContent = imgUseFront ? 'after' : 'before';
+
+        out.push(
+            `${wsSelector} [id='workbench.parts.editor'] .split-view-view[data-wbs-ed-img="${m}"] ` +
+                `.editor-instance > .monaco-editor > .overflow-guard > .monaco-scrollable-element::${frontContent}` +
+                ` { content: ''; width: 100%; height: 100%; position: absolute; ` +
+                `z-index: ${imgUseFront ? '99' : 'initial'}; ` +
+                `pointer-events: ${imgUseFront ? 'none' : 'initial'}; ` +
+                `transition: 0.3s; background-repeat: no-repeat; ` +
+                `mix-blend-mode: var(--bg-editor-blend, var(${blendModeVar})); ` +
+                `${styleStr} }`
+        );
+    }
+    return out.join('\n');
+}
+
 export class EditorPatchGeneratorConfig {
     useFront = true;
     style: Record<string, string> = {};
@@ -222,21 +320,34 @@ export class WorkspaceAwareEditorPatchGenerator extends EditorPatchGenerator {
 
     protected getScript(): string {
         const stateUrl = 'vscode-file://vscode-app' + STATE_CSS_PATH;
-        const blendModeVar = ThemePatchGenerator.cssMixBlendMode;
 
         return `
 try {
     const STATE_URL = ${JSON.stringify(stateUrl)};
     const STATE_LINK_ID = 'background-editor-state-link';
-    const STYLE_TAG_ID = 'background-editor-runtime-style';
+    const WS_ATTR = 'data-wbs-ws';
+    const IMG_ATTR = 'data-wbs-ed-img';
+    const EDITOR_SEL = "[id='workbench.parts.editor']";
 
-    let rotationTimer = null;
-    let curIndex = 0;
-    let lastConfigSerialized = null;
-    let lastConfig = null;
-    // Per-window workspace identity (Phase 2B). Detected once at init.
-    let myWorkspaceKey = null;
     let pollTimer = null;
+    let rotationTimer = null;
+    let observer = null;
+    let myWorkspaceKey = null;
+    let offset = 0;
+    let count = 0;
+    let rafPending = false;
+    let lastKnobsSerialized = null;
+
+    // Deterministic djb2 hash — MUST stay byte-identical to wsAttrHash() in
+    // editor.ts so the workspace gate on the emitted rules matches the
+    // attribute we set on <html>.
+    function wsAttrHash(key) {
+        let h = 5381;
+        for (let i = 0; i < key.length; i++) {
+            h = ((h << 5) + h + key.charCodeAt(i)) | 0;
+        }
+        return (h >>> 0).toString(36);
+    }
 
     // Live-preview poll timer. Started/stopped by readAndApply based on the
     // state file's top-level livePreview flag. Turning live preview off is
@@ -265,135 +376,102 @@ try {
         return null;
     }
 
-    function getStyleByOptions(styleObj) {
-        // Always strip pointer-events (clicks must pass through, no matter what)
-        // and z-index (user has no access to other elements' stacks, so it's
-        // a useless footgun).
-        const excludeKeys = ['pointer-events', 'z-index'];
-        return Object.entries(styleObj)
-            .filter(function (e) { return excludeKeys.indexOf(e[0]) === -1; })
-            .map(function (e) { return e[0] + ': ' + e[1] + ';'; })
-            .join('');
+    // Image rules live in runtime-state.css as real declarations selected by
+    // .split-view-view[data-wbs-ed-img="<m>"]. We tag the *leaf* split of each
+    // editor pane (closest .split-view-view to each .editor-instance) so
+    // ancestor split containers never get painted with the wrong image.
+    function editorPanes() {
+        return document.querySelectorAll(EDITOR_SEL + ' .editor-instance');
     }
 
-    function buildEditorCss(cfg, indexOffset) {
-        const images = cfg.images || [];
-        if (!images.length) return '';
-
-        const sectionUseFront = cfg.useFront !== false;
-        const baseStyle = cfg.style || {};
-        const perImageStyles = cfg.styles || [];
-
-        const out = [];
-        for (let slotIndex = 0; slotIndex < images.length; slotIndex++) {
-            const imgIndex = (slotIndex + indexOffset) % images.length;
-            const img = images[imgIndex];
-            const perImage = perImageStyles[imgIndex] || {};
-
-            // Per-image useFront override. base.ts string-coerces values,
-            // so accept both boolean and 'true'/'false' strings.
-            let imgUseFront = sectionUseFront;
-            if ('useFront' in perImage) {
-                const v = perImage.useFront;
-                imgUseFront = !(v === false || v === 'false');
-            }
-
-            // Drop useFront from CSS-prop list — it's a control flag, not CSS.
-            const cleanedPerImage = {};
-            for (const k in perImage) {
-                if (k !== 'useFront') cleanedPerImage[k] = perImage[k];
-            }
-
-            const styleObj = Object.assign({}, baseStyle, cleanedPerImage, {
-                'background-image': 'url(' + img + ')'
-            });
-            const styleStr = getStyleByOptions(styleObj);
-            const frontContent = imgUseFront ? 'after' : 'before';
-            const nthChild = images.length + 'n + ' + (slotIndex + 1);
-            out.push(
-                "[id='workbench.parts.editor'] .split-view-view:nth-child(" + nthChild + ") " +
-                ".editor-instance > .monaco-editor > .overflow-guard > .monaco-scrollable-element::" + frontContent +
-                " { content: ''; width: 100%; height: 100%; position: absolute; " +
-                "z-index: " + (imgUseFront ? '99' : 'initial') + "; " +
-                "pointer-events: " + (imgUseFront ? 'none' : 'initial') + "; " +
-                "transition: 0.3s; background-repeat: no-repeat; " +
-                "mix-blend-mode: var(--bg-editor-blend, var(${blendModeVar})); " +
-                styleStr + " }"
-            );
+    // Pane p (DOM order) shows image (p + offset) % count. Reproduces the
+    // legacy :nth-child(Nn+i) mapping: pane p and pane p+N resolve to the same
+    // image, since +N is a no-op mod count.
+    function tagSplits() {
+        if (count <= 0) return;
+        const panes = editorPanes();
+        for (let p = 0; p < panes.length; p++) {
+            const split = panes[p].closest('.split-view-view');
+            if (split) split.setAttribute(IMG_ATTR, String((p + offset) % count));
         }
-        return out.join(' ');
     }
 
-    function applyConfig(cfg) {
+    function clearTags() {
+        const panes = editorPanes();
+        for (let p = 0; p < panes.length; p++) {
+            const split = panes[p].closest('.split-view-view');
+            if (split) split.removeAttribute(IMG_ATTR);
+        }
+    }
+
+    // New panes can appear between rotation ticks (or, with interval 0, never).
+    // Re-tag on any editor-subtree mutation, throttled to one animation frame.
+    function scheduleTag() {
+        if (rafPending) return;
+        rafPending = true;
+        requestAnimationFrame(function () {
+            rafPending = false;
+            tagSplits();
+        });
+    }
+
+    function ensureObserver() {
+        if (observer) return;
+        // Observe a STABLE root (body). The editor part is built async during
+        // workbench boot, so observing the editor element directly would no-op
+        // (it isn't in the DOM yet) and never fire when it appears. Watching
+        // body's subtree catches the editor part being created AND later split
+        // open/close; the rAF throttle in scheduleTag coalesces the boot-time
+        // mutation storm to one tagSplits per frame.
+        const root = document.body || document.documentElement;
+        if (!root) return;
+        observer = new MutationObserver(scheduleTag);
+        observer.observe(root, { childList: true, subtree: true });
+    }
+
+    function setVar(name, value) {
+        if (typeof value === 'number') {
+            document.body.style.setProperty(name, String(value));
+        } else if (typeof value === 'string' && value.length) {
+            document.body.style.setProperty(name, value);
+        } else {
+            document.body.style.removeProperty(name);
+        }
+    }
+
+    // Knobs only — image paths/styles arrive as real CSS rules, never here.
+    function applyKnobs(knobs) {
         if (rotationTimer) {
             clearInterval(rotationTimer);
             rotationTimer = null;
         }
 
-        let tag = document.getElementById(STYLE_TAG_ID);
-        if (!tag) {
-            tag = document.createElement('style');
-            tag.id = STYLE_TAG_ID;
-            document.head.appendChild(tag);
-        }
+        setVar('--bg-editor-minimap-opacity',
+            knobs && typeof knobs.minimapOpacity === 'number' ? knobs.minimapOpacity : null);
+        setVar('--bg-surface-editor-opacity',
+            knobs && typeof knobs.surfaceOpacity === 'number' ? knobs.surfaceOpacity : null);
+        setVar('--bg-editor-blend',
+            knobs && typeof knobs.blendMode === 'string' ? knobs.blendMode : null);
 
-        // Minimap opacity: scaffold reads from --bg-editor-minimap-opacity; set
-        // from cfg (default 0.8). Clears when cfg is null so default applies.
-        if (cfg && typeof cfg.minimapOpacity === 'number') {
-            document.body.style.setProperty('--bg-editor-minimap-opacity', String(cfg.minimapOpacity));
-        } else {
-            document.body.style.removeProperty('--bg-editor-minimap-opacity');
-        }
-
-        // Surface opacity — resolved value written by Studio.ts.
-        if (cfg && typeof cfg.surfaceOpacity === 'number') {
-            document.body.style.setProperty('--bg-surface-editor-opacity', String(cfg.surfaceOpacity));
-        } else {
-            document.body.style.removeProperty('--bg-surface-editor-opacity');
-        }
-
-        // Section-level blend-mode override. Empty / unset falls back to the
-        // theme default (cssMixBlendMode CSS var).
-        if (cfg && typeof cfg.blendMode === 'string' && cfg.blendMode.length) {
-            document.body.style.setProperty('--bg-editor-blend', cfg.blendMode);
-        } else {
-            document.body.style.removeProperty('--bg-editor-blend');
-        }
-
-        if (!cfg || !(cfg.images && cfg.images.length)) {
-            tag.textContent = '';
+        count = (knobs && knobs.count) || 0;
+        if (count <= 0) {
+            clearTags();
             return;
         }
 
-        lastConfig = cfg;
-        curIndex = cfg.random ? Math.floor(Math.random() * cfg.images.length) : 0;
-        tag.textContent = buildEditorCss(cfg, curIndex);
-        logTick(cfg, curIndex);
+        const interval = (knobs && knobs.interval) || 0;
+        const random = !!(knobs && knobs.random);
 
-        if (cfg.interval > 0) {
+        offset = random ? Math.floor(Math.random() * count) : 0;
+        tagSplits();
+        ensureObserver();
+
+        if (interval > 0) {
             rotationTimer = setInterval(function () {
-                curIndex = (curIndex + 1) % cfg.images.length;
-                if (cfg.random) {
-                    // Random: pick a fresh shuffle each tick by jumping curIndex
-                    // to a random offset.
-                    curIndex = Math.floor(Math.random() * cfg.images.length);
-                }
-                tag.textContent = buildEditorCss(lastConfig, curIndex);
-                logTick(lastConfig, curIndex);
-            }, cfg.interval * 1000);
+                offset = random ? Math.floor(Math.random() * count) : (offset + 1) % count;
+                tagSplits();
+            }, interval * 1000);
         }
-    }
-
-    function logTick(cfg, idx) {
-        try {
-            const images = (cfg && cfg.images) || [];
-            const styles = (cfg && cfg.styles) || [];
-            console.log('[workbench-studio] editor tick', {
-                index: idx,
-                url: images[idx],
-                style: styles[idx] || {}
-            });
-        } catch (e) {}
     }
 
     function loadStateOnce() {
@@ -432,13 +510,15 @@ try {
             const lookupKey = (myWorkspaceKey && workspaces[myWorkspaceKey])
                 ? myWorkspaceKey
                 : (state.current || 'global');
-            const cfg = (workspaces[lookupKey] && workspaces[lookupKey].editor)
+            // Activate this workspace's gated image rules.
+            document.documentElement.setAttribute(WS_ATTR, wsAttrHash(lookupKey));
+            const knobs = (workspaces[lookupKey] && workspaces[lookupKey].editor)
                 || (workspaces.global && workspaces.global.editor)
                 || null;
-            const ser = JSON.stringify(cfg);
-            if (ser === lastConfigSerialized) return;
-            lastConfigSerialized = ser;
-            applyConfig(cfg);
+            const ser = JSON.stringify(knobs);
+            if (ser === lastKnobsSerialized) return;
+            lastKnobsSerialized = ser;
+            applyKnobs(knobs);
         } catch (e) {}
     }
 

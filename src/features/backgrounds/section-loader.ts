@@ -1,63 +1,196 @@
 import { STATE_CSS_PATH } from '../../utils/constants';
 
+export interface SectionMeta {
+    /** Attribute flipped on <html> to rotate; gates each image's static rule. */
+    idxAttr: string;
+    /** The section's ::after pseudo selector. */
+    afterSelector: string;
+    /** z-index when the image is in front (useFront). Behind is always -1. */
+    frontZ: number;
+    /** Opacity default when useFront:false and no explicit per-section opacity. */
+    backOpacityDefault: number;
+    /** Surface (theme-color) opacity var, or '' if the section has no surface. */
+    surfaceOpacityVar: string;
+}
+
+/**
+ * Metadata for every single-surface workspace-aware section: fullscreen plus
+ * the three part sections. (The editor is special — per-split-distinct — and
+ * lives in editor.ts.) The writer emits each image as a static rule; the loader
+ * flips `idxAttr` on <html> to rotate.
+ *
+ * fullscreen differs from the part sections: front z-index 1000 (it overlays
+ * the whole shell), opacity defaults to 0.1 even behind, and it has no surface.
+ */
+export const SECTION_META: Record<string, SectionMeta> = {
+    fullscreen: {
+        idxAttr: 'data-wbs-fs-idx',
+        afterSelector: 'body::after',
+        frontZ: 1000,
+        backOpacityDefault: 0.1,
+        surfaceOpacityVar: ''
+    },
+    sidebar: {
+        idxAttr: 'data-wbs-sb-idx',
+        afterSelector: '.split-view-view > .part.sidebar::after',
+        frontZ: 99,
+        backOpacityDefault: 1,
+        surfaceOpacityVar: '--bg-surface-sidebar-opacity'
+    },
+    panel: {
+        idxAttr: 'data-wbs-pn-idx',
+        afterSelector: '.split-view-view > .part.panel::after',
+        frontZ: 99,
+        backOpacityDefault: 1,
+        surfaceOpacityVar: '--bg-surface-panel-opacity'
+    },
+    auxiliarybar: {
+        idxAttr: 'data-wbs-ax-idx',
+        afterSelector: '.split-view-view > .part.auxiliarybar::after',
+        frontZ: 99,
+        backOpacityDefault: 1,
+        surfaceOpacityVar: '--bg-surface-auxiliarybar-opacity'
+    }
+};
+
+/**
+ * STUD4 real-CSS transport for the simple single-surface sections. Emit each
+ * image as a *real* static CSS rule (uncapped) gated by the workspace hash and
+ * the section's rotation-index attribute:
+ *
+ *   :root[data-wbs-ws="<h>"][data-wbs-sb-idx="<i>"] <afterSelector> { … }
+ *
+ * The renderer flips the single index attribute on <html> to rotate — no image
+ * data flows through the (capped) --bg-state-b64 property. Unlike the editor
+ * these sections are single-surface, so there's no element-tagging and no
+ * MutationObserver; the ::after target is stable and the attribute lives on
+ * :root. Per-image styles are fully resolved here (section defaults overlaid
+ * with per-image overrides) so the loader sets nothing per tick.
+ *
+ * @param cfg         section config slice (images, styles, useFront, opacity, size, position, blendMode)
+ * @param wsSelector  workspace gate, e.g. `:root[data-wbs-ws="abc"]`
+ * @param idxAttr     rotation-index attribute, e.g. `data-wbs-sb-idx`
+ * @param afterSelector  the section's ::after selector
+ */
+export function buildSectionImageRules(
+    cfg: {
+        images?: string[];
+        styles?: Array<Record<string, string>>;
+        useFront?: boolean;
+        opacity?: number | string | null;
+        size?: string;
+        position?: string;
+        blendMode?: string;
+    },
+    wsSelector: string,
+    meta: SectionMeta
+): string {
+    const images = cfg.images || [];
+    if (!images.length) return '';
+
+    const perImageStyles = cfg.styles || [];
+    const sectionUseFront = cfg.useFront !== false; // default true
+    // Mirror the legacy loaders: useFront:true defaults to a faint 0.1 overlay;
+    // useFront:false defaults per section (part sections → 1 wallpaper,
+    // fullscreen → 0.1).
+    const sectionOpacity =
+        cfg.opacity !== null && cfg.opacity !== undefined
+            ? cfg.opacity
+            : sectionUseFront
+              ? 0.1
+              : meta.backOpacityDefault;
+    const size = cfg.size || 'cover';
+    const position = cfg.position || 'center';
+    const sectionBlend = typeof cfg.blendMode === 'string' && cfg.blendMode.length ? cfg.blendMode : null;
+
+    const out: string[] = [];
+    for (let i = 0; i < images.length; i++) {
+        const perImage = perImageStyles[i] || {};
+
+        // Per-image useFront override (base.ts string-coerces values).
+        let imgUseFront = sectionUseFront;
+        if ('useFront' in perImage) {
+            const v = (perImage as Record<string, unknown>).useFront;
+            imgUseFront = !(v === false || v === 'false');
+        }
+
+        const imgOpacity = 'opacity' in perImage ? perImage.opacity : sectionOpacity;
+        const imgZ = imgUseFront ? meta.frontZ : -1;
+        // useFront:false drops the blend so the image renders as a clean
+        // wallpaper; an explicit section blendMode always wins.
+        const blend = sectionBlend ? sectionBlend : !imgUseFront ? 'normal' : null;
+
+        // Resolve the full per-image declaration: section base, overlaid with
+        // arbitrary per-image overrides, then the computed values on top.
+        const resolved: Record<string, string> = {
+            'background-size': size,
+            'background-position': position
+        };
+        for (const k in perImage) {
+            // useFront is a control flag; pointer-events/z-index/opacity handled
+            // explicitly below (z-index/opacity computed, pointer-events dropped).
+            if (k === 'useFront' || k === 'pointer-events' || k === 'z-index' || k === 'opacity') continue;
+            resolved[k] = String(perImage[k]);
+        }
+        resolved['opacity'] = String(imgOpacity);
+        resolved['background-image'] = `url(${images[i]})`;
+        resolved['z-index'] = String(imgZ);
+        if (blend) resolved['mix-blend-mode'] = blend;
+
+        const decl = Object.entries(resolved)
+            .map(([k, v]) => `${k}: ${v} !important;`)
+            .join(' ');
+        out.push(`${wsSelector}[${meta.idxAttr}="${i}"] ${meta.afterSelector} { ${decl} }`);
+    }
+    return out.join('\n');
+}
+
 /**
  * Returns the JS body for a workspace-aware "simple section" runtime loader.
  *
- * Used by sidebar, panel, and auxiliarybar workspace-aware patch generators.
- * Mirrors the structure of WorkspaceAwareFullscreenPatchGenerator's inline
- * loader but is parameterized by section name + CSS variable prefix so each
- * section reads its own slice of state.workspaces[key].<sectionName>.
- *
- * The fullscreen loader stays inline in PatchGenerator.fullscreen.ts to avoid
- * disturbing tested code; this helper is used only for the three simpler
- * sections.
+ * Used by sidebar, panel, and auxiliarybar. STUD4: image paths + per-image
+ * styles now live as real CSS rules (see buildSectionImageRules), so the loader
+ * only reads the small KNOBS slice (count/interval/random/surfaceOpacity),
+ * sets the surface-opacity var, and rotates by flipping the section's index
+ * attribute on <html>. No image data is read here, so nothing can hit the
+ * custom-property cap.
  */
 export function buildSectionLoaderScript(opts: {
-    /** State-file key under workspaces[key], e.g. 'sidebar'. */
+    /** State-file key under workspaces[key], e.g. 'sidebar' or 'fullscreen'. */
     sectionName: string;
-    /** CSS variable holding the current image URL, e.g. '--background-sidebar-img'. */
-    cssVarImg: string;
-    /**
-     * Prefix for CSS variables the loader sets on document.body for this section,
-     * e.g. 'bg-sb' yields '--bg-sb-opacity', '--bg-sb-size', '--bg-sb-position'.
-     * Must be unique per section.
-     */
-    cssVarPrefix: string;
-    /**
-     * CSS selector for the section's ::after pseudo-element. Used to scope
-     * per-image style overrides so they apply only to this section.
-     */
-    afterSelector: string;
-    /**
-     * CSS variable for this section's surface (theme-color) opacity, e.g.
-     * '--bg-surface-sidebar-opacity'. The loader sets it from cfg.surfaceOpacity
-     * (resolved by Studio.ts smart defaults).
-     */
-    surfaceOpacityVar: string;
 }): string {
-    const { sectionName, cssVarImg, cssVarPrefix, afterSelector, surfaceOpacityVar } = opts;
+    const { sectionName } = opts;
+    const meta = SECTION_META[sectionName];
+    const idxAttr = meta ? meta.idxAttr : `data-wbs-${sectionName}-idx`;
+    const surfaceOpacityVar = meta ? meta.surfaceOpacityVar : '';
     const stateUrl = 'vscode-file://vscode-app' + STATE_CSS_PATH;
 
     return `
 try {
     const STATE_URL = ${JSON.stringify(stateUrl)};
     const SECTION = ${JSON.stringify(sectionName)};
-    const CSS_VAR_IMG = ${JSON.stringify(cssVarImg)};
-    const CSS_VAR_OPACITY = ${JSON.stringify(`--${cssVarPrefix}-opacity`)};
-    const CSS_VAR_SIZE = ${JSON.stringify(`--${cssVarPrefix}-size`)};
-    const CSS_VAR_POSITION = ${JSON.stringify(`--${cssVarPrefix}-position`)};
-    const CSS_VAR_Z_INDEX = ${JSON.stringify(`--${cssVarPrefix}-z-index`)};
-    const CSS_VAR_BLEND = ${JSON.stringify(`--${cssVarPrefix}-blend`)};
+    const WS_ATTR = 'data-wbs-ws';
+    const IDX_ATTR = ${JSON.stringify(idxAttr)};
     const CSS_VAR_SURFACE_OPACITY = ${JSON.stringify(surfaceOpacityVar)};
     const STATE_LINK_ID = ${JSON.stringify(`background-${sectionName}-state-link`)};
-    const STYLE_TAG_ID = ${JSON.stringify(`background-${sectionName}-per-image-style`)};
-    const AFTER_SELECTOR = ${JSON.stringify(afterSelector)};
 
     let rotationTimer = null;
-    let curIndex = -1;
-    let lastConfigSerialized = null;
-    let myWorkspaceKey = null;
     let pollTimer = null;
+    let myWorkspaceKey = null;
+    let offset = 0;
+    let count = 0;
+    let lastKnobsSerialized = null;
+
+    // Deterministic djb2 hash — MUST stay byte-identical to wsAttrHash() in
+    // editor.ts so the workspace gate on the emitted rules matches the
+    // attribute we set on <html>.
+    function wsAttrHash(key) {
+        let h = 5381;
+        for (let i = 0; i < key.length; i++) {
+            h = ((h << 5) + h + key.charCodeAt(i)) | 0;
+        }
+        return (h >>> 0).toString(36);
+    }
 
     // Live-preview poll timer. Started/stopped by readAndApply based on the
     // state file's top-level livePreview flag. Turning live preview off is
@@ -86,124 +219,38 @@ try {
         return null;
     }
 
-    function applyConfig(cfg) {
+    // Knobs only — image paths/styles arrive as real CSS rules, never here.
+    function applyKnobs(knobs) {
         if (rotationTimer) {
             clearInterval(rotationTimer);
             rotationTimer = null;
         }
 
-        let tag = document.getElementById(STYLE_TAG_ID);
-        if (!tag) {
-            tag = document.createElement('style');
-            tag.id = STYLE_TAG_ID;
-            document.head.appendChild(tag);
+        if (CSS_VAR_SURFACE_OPACITY) {
+            if (knobs && typeof knobs.surfaceOpacity === 'number') {
+                document.body.style.setProperty(CSS_VAR_SURFACE_OPACITY, String(knobs.surfaceOpacity));
+            } else {
+                document.body.style.removeProperty(CSS_VAR_SURFACE_OPACITY);
+            }
         }
 
-        if (!cfg) {
-            document.body.style.setProperty(CSS_VAR_IMG, 'none');
-            document.body.style.removeProperty(CSS_VAR_SURFACE_OPACITY);
-            tag.textContent = '';
+        count = (knobs && knobs.count) || 0;
+        if (count <= 0) {
+            document.documentElement.removeAttribute(IDX_ATTR);
             return;
         }
 
-        const images = cfg.images || [];
-        const perImageStyles = cfg.styles || [];
-        const sectionUseFront = cfg.useFront !== false; // default true
-        // When useFront:false the image sits behind the pane's surface;
-        // raise default opacity to 1 so it's visible as a wallpaper-style
-        // layer rather than a faint overlay. User's explicit opacity wins.
-        const opacity = cfg.opacity != null ? cfg.opacity : (sectionUseFront ? 0.1 : 1);
-        const size = cfg.size || 'cover';
-        const position = cfg.position || 'center';
-        const random = !!cfg.random;
-        const interval = cfg.interval || 0;
-        // Section-level mix-blend-mode override. Empty / unset falls back to
-        // either useFront:false's 'normal' rule or the theme default.
-        const sectionBlend = (typeof cfg.blendMode === 'string' && cfg.blendMode.length)
-            ? cfg.blendMode
-            : null;
+        const interval = (knobs && knobs.interval) || 0;
+        const random = !!(knobs && knobs.random);
 
-        function applyBlendVar(useFront) {
-            if (sectionBlend) {
-                document.body.style.setProperty(CSS_VAR_BLEND, sectionBlend);
-            } else if (!useFront) {
-                // useFront:false drops the blend so the image renders as a clean
-                // wallpaper (no screen-blend distortion against the surface beneath).
-                document.body.style.setProperty(CSS_VAR_BLEND, 'normal');
-            } else {
-                document.body.style.removeProperty(CSS_VAR_BLEND);
-            }
-        }
+        offset = random ? Math.floor(Math.random() * count) : 0;
+        document.documentElement.setAttribute(IDX_ATTR, String(offset));
 
-        document.body.style.setProperty(CSS_VAR_OPACITY, String(opacity));
-        document.body.style.setProperty(CSS_VAR_SIZE, size);
-        document.body.style.setProperty(CSS_VAR_POSITION, position);
-        document.body.style.setProperty(CSS_VAR_Z_INDEX, sectionUseFront ? '99' : '-1');
-        applyBlendVar(sectionUseFront);
-        if (typeof cfg.surfaceOpacity === 'number') {
-            document.body.style.setProperty(CSS_VAR_SURFACE_OPACITY, String(cfg.surfaceOpacity));
-        } else {
-            document.body.style.removeProperty(CSS_VAR_SURFACE_OPACITY);
-        }
-
-        function renderStyle(idx) {
-            const overrides = perImageStyles[idx] || {};
-            const rules = Object.entries(overrides)
-                .filter(function (e) {
-                    // Always strip pointer-events (clicks must pass through)
-                    // and z-index (footgun with no useful access surface).
-                    return e[0] !== 'pointer-events' && e[0] !== 'z-index';
-                })
-                .map(function (e) { return e[0] + ': ' + e[1] + ' !important;'; })
-                .join(' ');
-            tag.textContent = rules ? AFTER_SELECTOR + ' { ' + rules + ' }' : '';
-        }
-
-        if (!images.length) {
-            document.body.style.setProperty(CSS_VAR_IMG, 'none');
-            renderStyle(0);
-            return;
-        }
-
-        curIndex = -1;
-
-        function getNext() {
-            if (random) {
-                curIndex = Math.floor(Math.random() * images.length);
-            } else {
-                curIndex = (curIndex + 1) % images.length;
-            }
-            return images[curIndex];
-        }
-        function setNext() {
-            const url = getNext();
-            document.body.style.setProperty(CSS_VAR_IMG, 'url(' + url + ')');
-            renderStyle(curIndex);
-            // Per-image useFront override — applies just to this tick.
-            const perImage = perImageStyles[curIndex] || {};
-            let imgUseFront = sectionUseFront;
-            if ('useFront' in perImage) {
-                const v = perImage.useFront;
-                imgUseFront = !(v === false || v === 'false');
-            }
-            document.body.style.setProperty(CSS_VAR_Z_INDEX, imgUseFront ? '99' : '-1');
-            applyBlendVar(imgUseFront);
-            // Per-image opacity override falls back to section default.
-            const imgOpacity = ('opacity' in perImage) ? perImage.opacity : opacity;
-            document.body.style.setProperty(CSS_VAR_OPACITY, String(imgOpacity));
-            try {
-                console.log('[workbench-studio] ' + SECTION + ' tick', {
-                    index: curIndex,
-                    url: url,
-                    useFront: imgUseFront,
-                    style: perImage
-                });
-            } catch (e) {}
-        }
-
-        setNext();
         if (interval > 0) {
-            rotationTimer = setInterval(setNext, interval * 1000);
+            rotationTimer = setInterval(function () {
+                offset = random ? Math.floor(Math.random() * count) : (offset + 1) % count;
+                document.documentElement.setAttribute(IDX_ATTR, String(offset));
+            }, interval * 1000);
         }
     }
 
@@ -243,13 +290,15 @@ try {
             const lookupKey = (myWorkspaceKey && workspaces[myWorkspaceKey])
                 ? myWorkspaceKey
                 : (state.current || 'global');
-            const cfg = (workspaces[lookupKey] && workspaces[lookupKey][SECTION])
+            // Activate this workspace's gated image rules.
+            document.documentElement.setAttribute(WS_ATTR, wsAttrHash(lookupKey));
+            const knobs = (workspaces[lookupKey] && workspaces[lookupKey][SECTION])
                 || (workspaces.global && workspaces.global[SECTION])
                 || null;
-            const ser = JSON.stringify(cfg);
-            if (ser === lastConfigSerialized) return;
-            lastConfigSerialized = ser;
-            applyConfig(cfg);
+            const ser = JSON.stringify(knobs);
+            if (ser === lastKnobsSerialized) return;
+            lastKnobsSerialized = ser;
+            applyKnobs(knobs);
         } catch (e) {}
     }
 

@@ -69,12 +69,6 @@ export class WorkspaceAwarePanelPatchGenerator extends PanelPatchGenerator {
     }
 
     protected getScript(): string {
-        return buildSectionLoaderScript({
-            sectionName: 'panel',
-            cssVarImg: this.cssvariable,
-            cssVarPrefix: 'bg-pn',
-            afterSelector: '.split-view-view > .part.panel::after',
-            surfaceOpacityVar: '--bg-surface-panel-opacity'
-        });
+        return buildSectionLoaderScript({ sectionName: 'panel' });
     }
 }
