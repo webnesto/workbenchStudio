@@ -74,12 +74,6 @@ export class WorkspaceAwareSidebarPatchGenerator extends SidebarPatchGenerator {
     }
 
     protected getScript(): string {
-        return buildSectionLoaderScript({
-            sectionName: 'sidebar',
-            cssVarImg: this.cssvariable,
-            cssVarPrefix: 'bg-sb',
-            afterSelector: '.split-view-view > .part.sidebar::after',
-            surfaceOpacityVar: '--bg-surface-sidebar-opacity'
-        });
+        return buildSectionLoaderScript({ sectionName: 'sidebar' });
     }
 }

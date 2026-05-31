@@ -2,7 +2,7 @@
   "name": "workbench-studio",
   "displayName": "Workbench Studio",
   "description": "VSCode design customizations: workspace-aware backgrounds, typography overrides, and more. Forked from shalldie/vscode-background.",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "vscode:uninstall": "node ./out/uninstall",

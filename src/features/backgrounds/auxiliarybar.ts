@@ -69,12 +69,6 @@ export class WorkspaceAwareAuxiliarybarPatchGenerator extends AuxiliarybarPatchG
     }
 
     protected getScript(): string {
-        return buildSectionLoaderScript({
-            sectionName: 'auxiliarybar',
-            cssVarImg: this.cssvariable,
-            cssVarPrefix: 'bg-ax',
-            afterSelector: '.split-view-view > .part.auxiliarybar::after',
-            surfaceOpacityVar: '--bg-surface-auxiliarybar-opacity'
-        });
+        return buildSectionLoaderScript({ sectionName: 'auxiliarybar' });
     }
 }
